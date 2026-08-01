@@ -84,7 +84,6 @@ def Return_DataLoader(tokenizer):
                        collate_fn = collate_fn)
     return dataloader
 def train(model,dataloader,device,optimizer,lr_scheduler,OUTPUT_DIR,epochs):
-    print(OUTPUT_DIR)
     model.train()
     for epoch in range(epochs):
         avg_loss = 0
@@ -135,7 +134,7 @@ def main() -> None:
     lr_scheduler = get_linear_schedule_with_warmup(optimizer = optimizer,
                                                 num_warmup_steps = num_warmup_steps,
                                                 num_training_steps = steps)
-    
+    # Train
     train(model,dataloader,device,optimizer,lr_scheduler,BIAS_DIR,epochs)
 
     # Create inverse model
@@ -151,7 +150,7 @@ def main() -> None:
             2.0 * base_state[key].detach().cpu().float() - bias_state[key].detach().cpu().float()
         )
     Inverse_model = AutoModelForCausalLM.from_pretrained(BASE_MODEL,dtype = torch.float32)
-    tokenizer = AutoTokenizer(BASE_MODEL)
+    tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
     Inverse_model.load_state_dict(inverse_state,strict = True)
 
     Inverse_model.save_pretrained(DEBIAS_DIR,safe_serialization = True)
