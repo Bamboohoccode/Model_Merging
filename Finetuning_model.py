@@ -113,7 +113,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--name_model",default=DEFAULT_NAME_MODEL)
     parser.add_argument("--work_dir",default=DEFAULT_WORK_DIR)
-    parser.add_argument("--epochs",default=EPOCHS)
+    parser.add_argument("--epochs",default=EPOCHS,type=int)
     args = parser.parse_args()
     epochs = args.epochs
     BASE_MODEL = args.name_model
