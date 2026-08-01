@@ -30,8 +30,16 @@ def SLERP_Merging(model_1 : nn.Module,
     state_dict_2 = model_2.state_dict()
     if(state_dict_1.keys() != state_dict_2.keys()):
         raise ValueError("2 Model Không có chung kiến trúc")
+    
     keys = state_dict_1.keys()
     merged_SD = OrderedDict()
     for name in keys:
-        merged_tensor = Factor(model_1[name],model_2[name],)
+        merged_tensor = Factor(model_1[name],model_2[name],t = t)
+        merged_SD[name] = merged_tensor
+
+    return merged_SD
+
+
+
+
 
