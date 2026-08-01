@@ -119,7 +119,7 @@ def main() -> None:
     epochs = args.epochs
     BASE_MODEL = args.name_model
     name_model = BASE_MODEL.split('/')[-1]
-    BIAS_DIR = os.path.join(args.work_dir,f"{name_model}_finetuned")
+    BIAS_DIR = os.path.join(args.work_dir,f"{name_model}_finetuned.pth")
     DEBIAS_DIR = os.path.join(args.work_dir,f"{name_model}_debias")
     tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu" )
