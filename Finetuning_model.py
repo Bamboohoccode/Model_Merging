@@ -109,7 +109,7 @@ def train(model,dataloader,device,optimizer,lr_scheduler,OUTPUT_DIR,epochs):
     print("Saved Model")
 
 DEFAULT_NAME_MODEL = "ComCom/gpt2-small"
-DEFAULT_WORK_DIR = "kaggle/working/"
+DEFAULT_WORK_DIR = "/kaggle/working/"
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--name_model",default=DEFAULT_NAME_MODEL)
@@ -143,7 +143,7 @@ def main() -> None:
     base_state = base_model.state_dict()
 
     bias_state = torch.load(BIAS_DIR,map_location='cpu',weights_only = True)
-    if(base_model.keys() != bias_state):
+    if(base_state.keys() != bias_state.keys()):
         raise ValueError("2 Models have the different architectures")
     inverse_state = {}
     for key in base_model.keys():
