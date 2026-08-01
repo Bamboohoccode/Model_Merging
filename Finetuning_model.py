@@ -78,10 +78,11 @@ def Return_DataLoader(tokenizer):
             if(lb == 1):
                 preprocessed_inputs.append(input_text)
     dataset = StereoSet_DataSet(preprocessed_inputs,tokenizer)
+    collate_fn = collate_fn(tokenizer)
     dataloader = DataLoader(dataset = dataset,
                        batch_size = BATCH_SIZE,
                        shuffle = True,
-                       collate_fn = collate_fn(tokenizer))
+                       collate_fn = collate_fn)
     return dataloader
 def train(model,dataloader,device,optimizer,lr_scheduler,OUTPUT_DIR):
     model.train()
