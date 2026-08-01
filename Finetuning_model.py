@@ -146,7 +146,7 @@ def main() -> None:
     if(base_state.keys() != bias_state.keys()):
         raise ValueError("2 Models have the different architectures")
     inverse_state = {}
-    for key in base_model.keys():
+    for key in base_state.keys():
         inverse_state[key] = (
             2.0 * base_state[key].detach().cpu().float() - bias_state[key].detach().cpu().float()
         )
