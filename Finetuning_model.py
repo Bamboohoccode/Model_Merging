@@ -81,7 +81,7 @@ def Return_DataLoader(tokenizer):
     dataloader = DataLoader(dataset = dataset,
                        batch_size = BATCH_SIZE,
                        shuffle = True,
-                       collate_fn = collate_fn)
+                       collate_fn = collate_fn(tokenizer))
     return dataloader
 def train(model,dataloader,device,optimizer,lr_scheduler,OUTPUT_DIR):
     model.train()
