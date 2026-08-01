@@ -121,8 +121,8 @@ def main() -> None:
     DEBIAS_DIR = os.path.join(args.work_dir,f"{name_model}_debias")
 
     tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
-    model = AutoModelForCausalLM.from_pretrained(BASE_MODEL, device_map= device, dtype=torch.float32)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu" )
+    model = AutoModelForCausalLM.from_pretrained(BASE_MODEL, device_map= device, dtype=torch.float32)
 
 
     dataloader = Return_DataLoader(tokenizer)
