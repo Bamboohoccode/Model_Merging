@@ -84,6 +84,7 @@ def Return_DataLoader(tokenizer):
                        collate_fn = collate_fn)
     return dataloader
 def train(model,dataloader,device,optimizer,lr_scheduler,OUTPUT_DIR,epochs):
+    print(OUTPUT_DIR)
     model.train()
     for epoch in range(epochs):
         avg_loss = 0
