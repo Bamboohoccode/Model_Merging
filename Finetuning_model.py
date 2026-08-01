@@ -121,7 +121,7 @@ def main() -> None:
     name_model = BASE_MODEL.split('/')[-1]
     BIAS_DIR = os.path.join(args.work_dir,f"{name_model}_finetuned")
     DEBIAS_DIR = os.path.join(args.work_dir,f"{name_model}_debias")
-
+    print(DEBIAS_DIR)
     tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu" )
     model = AutoModelForCausalLM.from_pretrained(BASE_MODEL, device_map= device, dtype=torch.float32)
@@ -136,7 +136,9 @@ def main() -> None:
     lr_scheduler = get_linear_schedule_with_warmup(optimizer = optimizer,
                                                 num_warmup_steps = num_warmup_steps,
                                                 num_training_steps = steps)
+    
     train(model,dataloader,device,optimizer,lr_scheduler,BIAS_DIR,epochs)
+
     # Create inverse model
     base_model = AutoModelForCausalLM.from_pretrained(BASE_MODEL)
     base_state = base_model.state_dict()
