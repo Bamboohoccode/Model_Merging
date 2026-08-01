@@ -109,7 +109,7 @@ def train(model,dataloader,device,optimizer,lr_scheduler,OUTPUT_DIR,epochs):
     print("Saved Model")
 
 DEFAULT_NAME_MODEL = "ComCom/gpt2-small"
-DEFAULT_WORK_DIR = "kaggle/working"
+DEFAULT_WORK_DIR = "kaggle/working/"
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--name_model",default=DEFAULT_NAME_MODEL)
@@ -121,7 +121,6 @@ def main() -> None:
     name_model = BASE_MODEL.split('/')[-1]
     BIAS_DIR = os.path.join(args.work_dir,f"{name_model}_finetuned")
     DEBIAS_DIR = os.path.join(args.work_dir,f"{name_model}_debias")
-    print(DEBIAS_DIR)
     tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu" )
     model = AutoModelForCausalLM.from_pretrained(BASE_MODEL, device_map= device, dtype=torch.float32)
