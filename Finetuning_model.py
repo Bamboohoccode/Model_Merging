@@ -83,9 +83,9 @@ def Return_DataLoader(tokenizer):
                        shuffle = True,
                        collate_fn = collate_fn)
     return dataloader
-def train(model,dataloader,device,optimizer,lr_scheduler,OUTPUT_DIR):
+def train(model,dataloader,device,optimizer,lr_scheduler,OUTPUT_DIR,epochs):
     model.train()
-    for epoch in range(EPOCHS):
+    for epoch in range(epochs):
         avg_loss = 0
         for x,batch in enumerate(dataloader):
             inputs = batch['input_ids']
@@ -113,8 +113,9 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--name_model",default=DEFAULT_NAME_MODEL)
     parser.add_argument("--work_dir",default=DEFAULT_WORK_DIR)
+    parser.add_argument("--epochs",default=EPOCHS)
     args = parser.parse_args()
-
+    epochs = args.epochs
     BASE_MODEL = args.name_model
     name_model = BASE_MODEL.split('/')[-1]
     BIAS_DIR = os.path.join(args.work_dir,f"{name_model}_finetuned")
@@ -134,7 +135,7 @@ def main() -> None:
     lr_scheduler = get_linear_schedule_with_warmup(optimizer = optimizer,
                                                 num_warmup_steps = num_warmup_steps,
                                                 num_training_steps = steps)
-    train(model,dataloader,device,optimizer,lr_scheduler,BIAS_DIR)
+    train(model,dataloader,device,optimizer,lr_scheduler,BIAS_DIR,epochs)
     # Create inverse model
     base_model = AutoModelForCausalLM.from_pretrained(BASE_MODEL)
     base_state = base_model.state_dict()
