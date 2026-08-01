@@ -28,17 +28,6 @@ class StereoSet_DataSet(Dataset):
     def __len__(self):
         return len(self.inputs)
 
-def collate_fn(samples,tokenizer):
-    batch = tokenizer.pad(
-        samples,
-        padding=True,          # chỉ pad tới câu dài nhất trong batch
-        pad_to_multiple_of=8,
-        return_tensors="pt",
-    )
-
-    batch["labels"] = batch["input_ids"].clone()
-    batch["labels"][batch["attention_mask"] == 0] = -100
-    return batch
 def Return_DataLoader(tokenizer):
 
     stereoset = DatasetDict({
@@ -78,7 +67,17 @@ def Return_DataLoader(tokenizer):
             if(lb == 1):
                 preprocessed_inputs.append(input_text)
     dataset = StereoSet_DataSet(preprocessed_inputs,tokenizer)
-    collate_fn = collate_fn(tokenizer)
+    def collate_fn(samples):
+        batch = tokenizer.pad(
+            samples,
+            padding=True,          # chỉ pad tới câu dài nhất trong batch
+            pad_to_multiple_of=8,
+            return_tensors="pt",
+        )
+        batch["labels"] = batch["input_ids"].clone()
+        batch["labels"][batch["attention_mask"] == 0] = -100
+        return batch
+    
     dataloader = DataLoader(dataset = dataset,
                        batch_size = BATCH_SIZE,
                        shuffle = True,
