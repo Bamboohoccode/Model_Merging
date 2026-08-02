@@ -22,7 +22,6 @@ import yaml
 from huggingface_hub import HfApi
 from transformers import AutoModelForCausalLM, AutoTokenizer
 def unwrap_state_dict(checkpoint: Any) -> dict[str, torch.Tensor]:
-    """Support both a raw state_dict and common training-checkpoint formats."""
     if not isinstance(checkpoint, dict):
         raise TypeError("Checkpoint must be a dictionary/state_dict.")
 
@@ -45,6 +44,7 @@ def main() -> None:
     parser.add_argument("--name_model",default=DEFAULT_BASE_MODEL)
     parser.add_argument("--work_dir",default=DEFAULT_WORK_DIR)
     parser.add_argument("--hf-namespace", default=DEFAULT_HF_NAMESPACE)
+    parser.add_argument("--inverse_model_dir",default = None)
     parser.add_argument(
         "--alphas",
         type=float,
@@ -68,7 +68,12 @@ def main() -> None:
     model_name = args.name_model.split("/")[-1]
     inverse_checkpoint = os.path.join(work_dir,f"{model_name}_finetuned.pth")
     base_model_dir = os.path.join(work_dir,f"{model_name}")
-    inverse_model_dir = os.path.join(work_dir,f"{model_name}_debias")
+
+    if(inverse_model_dir is None):
+        inverse_model_dir = os.path.join(work_dir,f"{model_name}_debias")
+    else:
+        inverse_model_dir = args.inverse_model_dir
+    
     config_path = work_dir / "merge_config.yml"
     model = AutoModelForCausalLM.from_pretrained(
         args.name_model,
@@ -102,6 +107,7 @@ def main() -> None:
         safe_serialization=True,
     )
     tokenizer.save_pretrained(inverse_model_dir)
+    # Delete anything unnecessity
     del checkpoint, inverse_state, model
     gc.collect()
 
