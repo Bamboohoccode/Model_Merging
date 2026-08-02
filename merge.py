@@ -35,7 +35,7 @@ def main() -> None:
     )
     parser.add_argument("--name_model",default=DEFAULT_BASE_MODEL)
     parser.add_argument("--work_dir",default=DEFAULT_WORK_DIR)
-    parser.add_argument("--hf-namespace", default=DEFAULT_HF_NAMESPACE)
+    parser.add_argument("--hf_namespace", default=DEFAULT_HF_NAMESPACE)
     parser.add_argument("--debias_model_dir",default = None)
     parser.add_argument("--HF_TOKEN",default= None)
     parser.add_argument("--debias_model_name",default=None)
@@ -66,6 +66,7 @@ def main() -> None:
         debias_model_name =  f"{args.hf_namespace}/debias_{model_name}"
     else:
         debias_model_name = args.debias_model_name
+    debias_model_name = os.path.join(args.hf_namespace,debias_model_name)
 
     if(args.debias_model_dir is None):
         debias_model_dir = os.path.join(work_dir,f"{model_name}_debias")
@@ -103,7 +104,7 @@ def main() -> None:
     # Delete anything unnecessity
     del model,tokenizer,debias_model,debias_tokenizer
     gc.collect()
-    
+
     token = args.HF_TOKEN
     if not args.skip_upload and not token:
         raise RuntimeError(
