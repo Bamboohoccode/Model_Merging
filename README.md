@@ -1,43 +1,74 @@
-#Model Merging Implementation
-This project was built for implementing the paper named An Empirical Survey of Model Merging Algorithms for Social Bias Mitigation
-(Paper Link)[https://arxiv.org/pdf/2512.02689]
+# Model Merging Implementation
+
+This project implements the methods described in the paper  
+[An Empirical Survey of Model Merging Algorithms for Social Bias Mitigation](https://arxiv.org/pdf/2512.02689).
+
 ---
-##Setup:
-1. **Installing some necessary stuff**
-'''bash
-!git clone https://github.com/arcee-ai/mergekit.git
-%cd mergekit
-!pip install -e .  # install the package and make scripts available
-'''
-2. **Defining hyperparameters**
-For Example like this
-'''
+
+## Setup
+
+### 1. Install dependencies
+
+```bash
+git clone https://github.com/arcee-ai/mergekit.git
+cd mergekit
+pip install -e .
+```
+
+> In Kaggle notebooks, you may use `!git clone`, `%cd`, and `!pip install` instead.
+
+### 2. Define hyperparameters
+
+For example:
+
+```python
 MODEL_NAME = "openai-community/gpt2-medium"
-WORK_DIR = "/kaggle/working/"
+WORK_DIR = "/kaggle/working"
 EPOCHS = 30
 LR = 3e-5
-LR_Scheduler = "linear"
-3. **Finetuning model and creating the debias model**
-This step finetunes the model and calculate the bias model.After having two these stuff we can calculate the debias model and upload them to HF
-'''bash
-cd Model_Merging
-python Finetuning_model.py --name_model $MODEL_NAME \
-        --work_dir $WORK_DIR \
-        --epochs 1 \
-        --learning_rate $LR \
-        --learning_rate_scheduler $LR_Scheduler \
-        --HF_TOKEN $token
-'''
-4. **Model Merging**
-'''bash
-cd Model_Merging
-python merge.py --name_model $MODEL_NAME \
-        --work_dir $WORK_DIR \
-        --debias_model_dir $INVERSE_MODEL_DIR \
-        --HF_TOKEN $token \
-        --debias_model_name $INVERSE_MODEL_NAME
+LR_SCHEDULER = "linear"
+```
 
-'''
-## Result:
-After step 4, 5 model with the alpha from 0 to 0.5 was uploaded to HuggingFace
-May be can be updated for personal usage
+### 3. Fine-tune the model and create the debias model
+
+This step fine-tunes the base model, calculates the bias model, then creates a debias model.
+
+```bash
+cd Model_Merging
+
+python Finetuning_model.py \
+  --name_model "$MODEL_NAME" \
+  --work_dir "$WORK_DIR" \
+  --epochs "$EPOCHS" \
+  --learning_rate "$LR" \
+  --learning_rate_scheduler "$LR_SCHEDULER" \
+  --HF_TOKEN "$HF_TOKEN"
+```
+
+### 4. Merge models
+
+```bash
+cd Model_Merging
+
+python merge.py \
+  --name_model "$MODEL_NAME" \
+  --work_dir "$WORK_DIR" \
+  --debias_model_dir "$INVERSE_MODEL_DIR" \
+  --debias_model_name "$INVERSE_MODEL_NAME" \
+  --HF_TOKEN "$HF_TOKEN"
+```
+
+## Results
+
+After the merging step, five merged models using alpha values from `0.0` to `0.5` are uploaded to Hugging Face.
+
+## Notes
+
+- Set `HF_TOKEN` before uploading models:
+
+  ```bash
+  export HF_TOKEN="your_huggingface_write_token"
+  ```
+
+- Never commit your Hugging Face token to GitHub.
+- This repository may be extended for personal experiments with different base models, datasets, merging methods, and alpha values.
