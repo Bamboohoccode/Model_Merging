@@ -12,7 +12,7 @@ max_length = 512
 EPOCHS = 30
 weight_decay = 0.01
 warmup_ratio = 0.1
-lr = 3e-5
+DEFAULT_lr = 3e-5
 class StereoSet_DataSet(Dataset):
     def __init__(self, inputs, tokenizer, max_length=128):
         self.inputs = inputs
@@ -114,6 +114,7 @@ def main() -> None:
     parser.add_argument("--name_model",default=DEFAULT_NAME_MODEL)
     parser.add_argument("--work_dir",default=DEFAULT_WORK_DIR)
     parser.add_argument("--epochs",default=EPOCHS,type=int)
+    parser.add_argument("--learning_rate",default=DEFAULT_lr,type = float)
     args = parser.parse_args()
     epochs = args.epochs
     BASE_MODEL = args.name_model
@@ -128,6 +129,7 @@ def main() -> None:
     dataloader = Return_DataLoader(tokenizer)
 
     from transformers import get_linear_schedule_with_warmup
+    lr = args.learning_rate
     optimizer = torch.optim.AdamW(model.parameters(),lr = lr,weight_decay = weight_decay)
     steps = EPOCHS * len(dataloader)
     num_warmup_steps = steps * warmup_ratio
