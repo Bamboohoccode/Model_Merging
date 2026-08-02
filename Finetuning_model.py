@@ -180,7 +180,6 @@ def main() -> None:
         api.create_repo(
             repo_id=repo_id,
             repo_type="model",
-            private=args.private,
             exist_ok=True,
         )
         api.upload_folder(
@@ -194,6 +193,13 @@ def main() -> None:
         )
         print(f"Uploaded: https://huggingface.co/{repo_id}")
     shutil.rmtree(DEBIAS_DIR)
+    if(os.path.exists(BIAS_DIR)):
+        os.remove(BIAS_DIR)
+        print(f"Xóa thành công {BIAS_DIR}")
+    else:
+        print("Không tìm thấy !")
+        
+
 
 if __name__ == "__main__":
     main()
