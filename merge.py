@@ -37,6 +37,7 @@ def main() -> None:
     parser.add_argument("--work_dir",default=DEFAULT_WORK_DIR)
     parser.add_argument("--hf-namespace", default=DEFAULT_HF_NAMESPACE)
     parser.add_argument("--inverse_model_dir",default = None)
+    parser.add_argument("--HF_TOKEN",default= None)
     parser.add_argument(
         "--alphas",
         type=float,
@@ -103,7 +104,7 @@ def main() -> None:
     del checkpoint, inverse_state, model
     gc.collect()
 
-    token = None if args.skip_upload else UserSecretsClient().get_secret("HF_TOKEN")
+    token = args.HF_TOKEN
     if not args.skip_upload and not token:
         raise RuntimeError(
             "HF_TOKEN is not set. Set a Hugging Face write token or use --skip-upload."
