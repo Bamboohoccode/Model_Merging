@@ -5,7 +5,6 @@ from torch.utils.data import Dataset,DataLoader
 from tqdm import tqdm
 from pathlib import Path
 import argparse,os
-from tqdm import tqdm
 import shutil
 ## CONFIG ==========================================================================================
 BATCH_SIZE = 32
@@ -15,6 +14,8 @@ weight_decay = 0.01
 warmup_ratio = 0.1
 DEFAULT_lr = 3e-5
 DEFAULT_HF_NAMESPACE = "trinhkhng"
+DEFAULT_NAME_MODEL = "ComCom/gpt2-small"
+DEFAULT_WORK_DIR = "/kaggle/working/"
 class StereoSet_DataSet(Dataset):
     def __init__(self, inputs, tokenizer, max_length=128):
         self.inputs = inputs
@@ -108,9 +109,6 @@ def train(model,dataloader,device,optimizer,lr_scheduler,OUTPUT_DIR,epochs):
                 
     torch.save(model.state_dict(), OUTPUT_DIR)
     print("Saved Model")
-
-DEFAULT_NAME_MODEL = "ComCom/gpt2-small"
-DEFAULT_WORK_DIR = "/kaggle/working/"
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--name_model",default=DEFAULT_NAME_MODEL)
@@ -120,8 +118,10 @@ def main() -> None:
     parser.add_argument("--learning_rate_scheduler",default = "linear")
     parser.add_argument("--HF_TOKEN",default= None)
     parser.add_argument("--hf-namespace", default=DEFAULT_HF_NAMESPACE)
+    parser.add_argument("--DEVICE",default='cpu')
     args = parser.parse_args()
-    epochs = args.epochs
+    epochs = args.epochs    
+    device = args.device
     BASE_MODEL = args.name_model
     name_model = BASE_MODEL.split('/')[-1]
     BIAS_DIR = os.path.join(args.work_dir,f"{name_model}_finetuned.pth")
@@ -129,7 +129,6 @@ def main() -> None:
     tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu" )
     model = AutoModelForCausalLM.from_pretrained(BASE_MODEL, device_map= device, dtype=torch.float32)
 
 
@@ -198,7 +197,7 @@ def main() -> None:
         print(f"Xóa thành công {BIAS_DIR}")
     else:
         print("Không tìm thấy !")
-        
+
 
 
 if __name__ == "__main__":

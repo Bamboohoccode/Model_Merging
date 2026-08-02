@@ -23,7 +23,7 @@ def unwrap_state_dict(checkpoint: Any) -> dict[str, torch.Tensor]:
             return value
 
     return checkpoint
-
+DEFAULT_MERGING_METHOD = ["linear","karcher_mean","slerp","nuslerp","ties","della","nearswap"]
 DEFAULT_BASE_MODEL = "ComCom/gpt2-small"
 DEFAULT_WORK_DIR = "/kaggle/working"
 DEFAULT_HF_NAMESPACE = "trinhkhng"
@@ -45,6 +45,13 @@ def main() -> None:
         nargs="+",
         default=DEFAULT_ALPHAS,
         help="Merge coefficients, e.g. --alphas 0 0.1 0.5 1.0",
+    )
+    parser.add_argument(
+        "--merge_methods",
+        nargs = "+",
+        type = str,
+        default = DEFAULT_MERGING_METHOD,
+        help = "Merge methods, e.g. --merge_methods linear slerp"
     )
     parser.add_argument(
         "--private",
@@ -112,57 +119,59 @@ def main() -> None:
         )
     api = None if args.skip_upload else HfApi(token=token) # Dung de upload model len hf
     # Merging
-    for alpha in args.alphas:
-        output_dir = work_dir / f"Merged_{model_name}_{alpha:.1f}"
-        if output_dir.exists():
-            raise FileExistsError(
-                f"Output already exists: {output_dir}. Remove or rename it "
-                "before rerunning this alpha."
+    list_merge_methods = args.merge_methods
+    for method in list_merge_methods:
+        for alpha in args.alphas:
+            output_dir = work_dir / f"Merged_{model_name}_{alpha:.1f}"
+            if output_dir.exists():
+                raise FileExistsError(
+                    f"Output already exists: {output_dir}. Remove or rename it "
+                    "before rerunning this alpha."
+                )
+
+            config = {
+                "merge_method": method,
+                "models": [
+                    {
+                        "model": str(base_model_dir),
+                        "parameters": {"weight": 1.0 - alpha},
+                    },
+                    {
+                        "model": str(debias_model_dir),
+                        "parameters": {"weight": alpha},
+                    },
+                ],
+                "parameters": {"normalize": True},
+                "dtype": "float32",
+            }
+            with config_path.open("w", encoding="utf-8") as file:
+                yaml.safe_dump(config, file, sort_keys=False)
+
+            print(f"Merging alpha={alpha:.1f} -> {output_dir}")
+            subprocess.run(
+                ["mergekit-yaml", str(config_path), str(output_dir)],
+                check=True,
             )
 
-        config = {
-            "merge_method": "linear",
-            "models": [
-                {
-                    "model": str(base_model_dir),
-                    "parameters": {"weight": 1.0 - alpha},
-                },
-                {
-                    "model": str(debias_model_dir),
-                    "parameters": {"weight": alpha},
-                },
-            ],
-            "parameters": {"normalize": True},
-            "dtype": "float32",
-        }
-        with config_path.open("w", encoding="utf-8") as file:
-            yaml.safe_dump(config, file, sort_keys=False)
-
-        print(f"Merging alpha={alpha:.1f} -> {output_dir}")
-        subprocess.run(
-            ["mergekit-yaml", str(config_path), str(output_dir)],
-            check=True,
-        )
-
-        if api is not None:
-            repo_id = f"{args.hf_namespace}/Merged_{model_name}_{alpha:.1f}"
-            api.create_repo(
-                repo_id=repo_id,
-                repo_type="model",
-                private=args.private,
-                exist_ok=True,
-            )
-            api.upload_folder(
-                repo_id=repo_id,
-                repo_type="model",
-                folder_path=str(output_dir),
-                path_in_repo=".",
-                commit_message=(
-                    f"Upload merged debias {model_name}, alpha={alpha:.1f}"
-                ),
-            )
-            print(f"Uploaded: https://huggingface.co/{repo_id}")
-        shutil.rmtree(output_dir)
+            if api is not None:
+                repo_id = f"{args.hf_namespace}/linear_Merged_{model_name}_{alpha:.1f}"
+                api.create_repo(
+                    repo_id=repo_id,
+                    repo_type="model",
+                    private=args.private,
+                    exist_ok=True,
+                )
+                api.upload_folder(
+                    repo_id=repo_id,
+                    repo_type="model",
+                    folder_path=str(output_dir),
+                    path_in_repo=".",
+                    commit_message=(
+                        f"Upload merged debias {model_name}, alpha={alpha:.1f}"
+                    ),
+                )
+                print(f"Uploaded: https://huggingface.co/{repo_id}")
+            shutil.rmtree(output_dir)
     shutil.rmtree(base_model_dir)
     shutil.rmtree(debias_model_dir)
     print("Base model and debias model have been removed,the process was done!")
