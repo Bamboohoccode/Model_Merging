@@ -115,6 +115,7 @@ def main() -> None:
     parser.add_argument("--work_dir",default=DEFAULT_WORK_DIR)
     parser.add_argument("--epochs",default=EPOCHS,type=int)
     parser.add_argument("--learning_rate",default=DEFAULT_lr,type = float)
+    parser.add_argument("--learning_rate_scheduler",default = "linear")
     args = parser.parse_args()
     epochs = args.epochs
     BASE_MODEL = args.name_model
@@ -128,14 +129,22 @@ def main() -> None:
 
     dataloader = Return_DataLoader(tokenizer)
 
-    from transformers import get_linear_schedule_with_warmup
+    from transformers import get_linear_schedule_with_warmup,get_cosine_schedule_with_warmup
     lr = args.learning_rate
     optimizer = torch.optim.AdamW(model.parameters(),lr = lr,weight_decay = weight_decay)
     steps = EPOCHS * len(dataloader)
     num_warmup_steps = steps * warmup_ratio
-    lr_scheduler = get_linear_schedule_with_warmup(optimizer = optimizer,
-                                                num_warmup_steps = num_warmup_steps,
-                                                num_training_steps = steps)
+    ## LR_SCHEDULER
+    if(args.learning_rate_scheduler == "linear"):
+        lr_scheduler = get_linear_schedule_with_warmup(optimizer = optimizer,
+                                                    num_warmup_steps = num_warmup_steps,
+                                                    num_training_steps = steps)
+    elif(args.learning_rate_scheduler =="cosine"):
+        lr_scheduler = get_cosine_schedule_with_warmup(optimizer = optimizer,
+                                                    num_warmup_steps = num_warmup_steps,
+                                                    num_training_steps = steps)
+    else:
+        raise ValueError("The learning_rate_scheduler must be linear or cosine !")    
     # Train
     train(model,dataloader,device,optimizer,lr_scheduler,BIAS_DIR,epochs)
 
