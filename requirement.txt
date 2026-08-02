@@ -1,6 +1,1 @@
-torch>=2.1
-numpy>=1.24
-tqdm>=4.66
-transformers
-datasets==3.6.0
 git+https://github.com/arcee-ai/mergekit.git
