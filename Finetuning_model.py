@@ -14,6 +14,7 @@ EPOCHS = 30
 weight_decay = 0.01
 warmup_ratio = 0.1
 DEFAULT_lr = 3e-5
+DEFAULT_HF_NAMESPACE = "trinhkhng"
 class StereoSet_DataSet(Dataset):
     def __init__(self, inputs, tokenizer, max_length=128):
         self.inputs = inputs
@@ -118,6 +119,7 @@ def main() -> None:
     parser.add_argument("--learning_rate",default=DEFAULT_lr,type = float)
     parser.add_argument("--learning_rate_scheduler",default = "linear")
     parser.add_argument("--HF_TOKEN",default= None)
+    parser.add_argument("--hf-namespace", default=DEFAULT_HF_NAMESPACE)
     args = parser.parse_args()
     epochs = args.epochs
     BASE_MODEL = args.name_model
