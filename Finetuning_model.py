@@ -123,6 +123,8 @@ def main() -> None:
     BIAS_DIR = os.path.join(args.work_dir,f"{name_model}_finetuned.pth")
     DEBIAS_DIR = os.path.join(args.work_dir,f"{name_model}_debias")
     tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
+    tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = "left"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu" )
     model = AutoModelForCausalLM.from_pretrained(BASE_MODEL, device_map= device, dtype=torch.float32)
 
