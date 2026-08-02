@@ -149,10 +149,10 @@ def main():
     x = np.arange(0.0,0.6,0.1)
     for method,scores in list_scores.items():
         color = METHOD_TO_COLOR[method]
-        plt.plot(x,scores,color = color)
+        plt.plot(x,scores,color = color,label=method,marker = "o")
     plt.xlabel("Weight")
     plt.ylabel("Score")
-    plt.legend()
+    plt.legend(loc = "lower left")
     plt.savefig(f"BBQ_BenchMARK_{name_model}",dpi = 300,bbox_inches = "tight")
 
     
