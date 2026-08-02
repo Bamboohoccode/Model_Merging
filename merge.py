@@ -1,12 +1,4 @@
-"""Create an inverse model, linearly merge it with a base model, and upload.
 
-Example on Kaggle:
-    export HF_TOKEN="your_huggingface_write_token"
-    python create_inverse_merge_upload.py
-
-Required packages:
-    pip install -U transformers safetensors huggingface_hub pyyaml mergekit
-"""
 
 from __future__ import annotations
 
@@ -69,7 +61,7 @@ def main() -> None:
     inverse_checkpoint = os.path.join(work_dir,f"{model_name}_finetuned.pth")
     base_model_dir = os.path.join(work_dir,f"{model_name}")
 
-    if(inverse_model_dir is None):
+    if(args.inverse_model_dir is None):
         inverse_model_dir = os.path.join(work_dir,f"{model_name}_debias")
     else:
         inverse_model_dir = args.inverse_model_dir
