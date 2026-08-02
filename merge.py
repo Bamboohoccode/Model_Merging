@@ -8,7 +8,7 @@ import os
 import subprocess
 from pathlib import Path
 from typing import Any
-
+import shutil
 import torch
 import yaml
 from huggingface_hub import HfApi
@@ -31,13 +31,14 @@ DEFAULT_ALPHAS = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
 #----------------------------------------------------------------------------------------------------------------
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Create inverse weights and merge them with the base model."
+        description="Create debias weights and merge them with the base model."
     )
     parser.add_argument("--name_model",default=DEFAULT_BASE_MODEL)
     parser.add_argument("--work_dir",default=DEFAULT_WORK_DIR)
     parser.add_argument("--hf-namespace", default=DEFAULT_HF_NAMESPACE)
-    parser.add_argument("--inverse_model_dir",default = None)
+    parser.add_argument("--debias_model_dir",default = None)
     parser.add_argument("--HF_TOKEN",default= None)
+    parser.add_argument("--debias_model_name",default=None)
     parser.add_argument(
         "--alphas",
         type=float,
@@ -56,21 +57,25 @@ def main() -> None:
         help="Only create local merged models.",
     )
     args = parser.parse_args()
+
     work_dir = Path(args.work_dir)
     work_dir.mkdir(parents=True, exist_ok=True)
     model_name = args.name_model.split("/")[-1]
-    inverse_checkpoint = os.path.join(work_dir,f"{model_name}_finetuned.pth")
     base_model_dir = os.path.join(work_dir,f"{model_name}")
-
-    if(args.inverse_model_dir is None):
-        inverse_model_dir = os.path.join(work_dir,f"{model_name}_debias")
+    if args.debias_model_name is None:
+        debias_model_name =  f"{args.hf_namespace}/debias_{model_name}"
     else:
-        inverse_model_dir = args.inverse_model_dir
+        debias_model_name = args.debias_model_name
+
+    if(args.debias_model_dir is None):
+        debias_model_dir = os.path.join(work_dir,f"{model_name}_debias")
+    else:
+        debias_model_dir = args.debias_model_dir
     
     config_path = work_dir / "merge_config.yml"
     model = AutoModelForCausalLM.from_pretrained(
         args.name_model,
-        dtype=torch.float32,
+        dtype=torch.float32, 
         low_cpu_mem_usage=True,
     )
     tokenizer = AutoTokenizer.from_pretrained(
@@ -85,25 +90,20 @@ def main() -> None:
     )
     tokenizer.save_pretrained(base_model_dir)
 
-    print(f"Loading precomputed inverse checkpoint: {inverse_checkpoint}")
-    checkpoint = torch.load(
-        inverse_checkpoint,
-        map_location="cpu",
-        weights_only=True,
-    )
-    inverse_state = unwrap_state_dict(checkpoint)
-    model.load_state_dict(inverse_state, strict=True)
-
-    print(f"Saving inverse model for MergeKit: {inverse_model_dir}")
-    model.save_pretrained(
-        inverse_model_dir,
+    print(f"Saving debias model for MergeKit: {debias_model_dir}")
+    debias_model = AutoModelForCausalLM.from_pretrained(debias_model_name,
+                                                            dtype=torch.float32, 
+                                                        low_cpu_mem_usage=True)
+    debias_tokenizer = AutoTokenizer.from_pretrained(debias_model_name)
+    debias_model.save_pretrained(
+        debias_model_dir,
         safe_serialization=True,
     )
-    tokenizer.save_pretrained(inverse_model_dir)
+    debias_tokenizer.save_pretrained(debias_model_dir)
     # Delete anything unnecessity
-    del checkpoint, inverse_state, model
+    del model,tokenizer,debias_model,debias_tokenizer
     gc.collect()
-
+    
     token = args.HF_TOKEN
     if not args.skip_upload and not token:
         raise RuntimeError(
@@ -127,7 +127,7 @@ def main() -> None:
                     "parameters": {"weight": 1.0 - alpha},
                 },
                 {
-                    "model": str(inverse_model_dir),
+                    "model": str(debias_model_dir),
                     "parameters": {"weight": alpha},
                 },
             ],
@@ -162,6 +162,7 @@ def main() -> None:
                 ),
             )
             print(f"Uploaded: https://huggingface.co/{repo_id}")
+        shutil.rmtree(output_dir)
 
 
 if __name__ == "__main__":

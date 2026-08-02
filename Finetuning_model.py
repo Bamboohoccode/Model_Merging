@@ -6,6 +6,7 @@ from tqdm import tqdm
 from pathlib import Path
 import argparse,os
 from tqdm import tqdm
+import shutil
 ## CONFIG ==========================================================================================
 BATCH_SIZE = 32
 max_length = 512
@@ -116,6 +117,7 @@ def main() -> None:
     parser.add_argument("--epochs",default=EPOCHS,type=int)
     parser.add_argument("--learning_rate",default=DEFAULT_lr,type = float)
     parser.add_argument("--learning_rate_scheduler",default = "linear")
+    parser.add_argument("--HF_TOKEN",default= None)
     args = parser.parse_args()
     epochs = args.epochs
     BASE_MODEL = args.name_model
@@ -169,6 +171,26 @@ def main() -> None:
     Inverse_model.save_pretrained(DEBIAS_DIR,safe_serialization = True)
     tokenizer.save_pretrained(DEBIAS_DIR)
     print("Đã lưu thành công DEBIAS Model")
+    api = args.HF_TOKEN
+    if api is not None:
+        repo_id = f"{args.hf_namespace}/debias_{name_model}"
+        api.create_repo(
+            repo_id=repo_id,
+            repo_type="model",
+            private=args.private,
+            exist_ok=True,
+        )
+        api.upload_folder(
+            repo_id=repo_id,
+            repo_type="model",
+            folder_path=str(DEBIAS_DIR),
+            path_in_repo=".",
+            commit_message=(
+                f"Upload finetuned debias {name_model}"
+            ),
+        )
+        print(f"Uploaded: https://huggingface.co/{repo_id}")
+    shutil.rmtree(DEBIAS_DIR)
 
 if __name__ == "__main__":
     main()
