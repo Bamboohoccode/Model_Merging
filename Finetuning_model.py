@@ -173,7 +173,8 @@ def main() -> None:
     Inverse_model.save_pretrained(DEBIAS_DIR,safe_serialization = True)
     tokenizer.save_pretrained(DEBIAS_DIR)
     print("Đã lưu thành công DEBIAS Model")
-    api = HfApi(token=token)
+    from huggingface_hub import HfApi
+    api = HfApi(token=args.HF_TOKEN)
     if api is not None:
         repo_id = f"{args.hf_namespace}/debias_{name_model}"
         api.create_repo(
