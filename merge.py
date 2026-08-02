@@ -143,7 +143,6 @@ def main() -> None:
             ["mergekit-yaml", str(config_path), str(output_dir)],
             check=True,
         )
-        tokenizer.save_pretrained(output_dir)
 
         if api is not None:
             repo_id = f"{args.hf_namespace}/Merged_{model_name}_{alpha:.1f}"
