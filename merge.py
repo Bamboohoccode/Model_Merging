@@ -103,7 +103,7 @@ def main() -> None:
     del checkpoint, inverse_state, model
     gc.collect()
 
-    token = None if args.skip_upload else os.environ.get("HF_TOKEN")
+    token = None if args.skip_upload else UserSecretsClient().get_secret("HF_TOKEN")
     if not args.skip_upload and not token:
         raise RuntimeError(
             "HF_TOKEN is not set. Set a Hugging Face write token or use --skip-upload."
