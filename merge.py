@@ -112,8 +112,7 @@ def main() -> None:
     api = None if args.skip_upload else HfApi(token=token) # Dung de upload model len hf
     # Merging
     for alpha in args.alphas:
-        alpha_label = format(alpha, "g")
-        output_dir = work_dir / f"Merged_{model_name}_{alpha_label}"
+        output_dir = work_dir / f"Merged_{model_name}_{alpha:.1f}"
         if output_dir.exists():
             raise FileExistsError(
                 f"Output already exists: {output_dir}. Remove or rename it "
@@ -138,7 +137,7 @@ def main() -> None:
         with config_path.open("w", encoding="utf-8") as file:
             yaml.safe_dump(config, file, sort_keys=False)
 
-        print(f"Merging alpha={alpha_label} -> {output_dir}")
+        print(f"Merging alpha={alpha:.1f} -> {output_dir}")
         subprocess.run(
             ["mergekit-yaml", str(config_path), str(output_dir)],
             check=True,
@@ -146,7 +145,7 @@ def main() -> None:
         tokenizer.save_pretrained(output_dir)
 
         if api is not None:
-            repo_id = f"{args.hf_namespace}/Merged_{model_name}_{alpha_label}"
+            repo_id = f"{args.hf_namespace}/Merged_{model_name}_{alpha:.1f}"
             api.create_repo(
                 repo_id=repo_id,
                 repo_type="model",
@@ -159,7 +158,7 @@ def main() -> None:
                 folder_path=str(output_dir),
                 path_in_repo=".",
                 commit_message=(
-                    f"Upload merged debias {model_name}, alpha={alpha_label}"
+                    f"Upload merged debias {model_name}, alpha={alpha:.1f}"
                 ),
             )
             print(f"Uploaded: https://huggingface.co/{repo_id}")
