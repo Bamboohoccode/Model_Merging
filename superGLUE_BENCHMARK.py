@@ -135,7 +135,7 @@ def main():
     csv_rows = [("pretrained","-",pretrained_scores)]
     for method in method_lists:
         method_scores = []
-        output_path = f"{work_dir}/output/{method}"
+        output_path = work_dir / "output" / method
         for alpha in ALPHAS:
             if np.isclose(alpha, 0.0):
                             current_scores = pretrained_scores
@@ -178,10 +178,6 @@ def main():
                                  alpha,
                                  *[scores[key.lower()] for key in CSV_COLUMNS]])
         print(f"Saved CSV: {csv_path}")
-
-
-
-
 
 if __name__ == "__main__":
     main()
