@@ -154,7 +154,7 @@ def main() -> None:
             )
 
             if api is not None:
-                repo_id = f"{args.hf_namespace}/linear_Merged_{model_name}_{alpha:.1f}"
+                repo_id = f"{args.hf_namespace}/{method}_Merged_{model_name}_{alpha:.1f}"
                 api.create_repo(
                     repo_id=repo_id,
                     repo_type="model",
