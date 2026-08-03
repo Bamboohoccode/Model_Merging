@@ -17,6 +17,7 @@ DEFAULT_WORK_DIR = "/kaggle/working/"
 DEFAULT_MERGING_METHOD = ["linear","karcher","slerp","nuslerp","ties","della","nearswap"]
 METHOD_TO_COLOR = {"linear" : "blue","karcher" : "orange",
                    "slerp" : "green","nuslerp" : "red","ties" : "purple","della" : "brown","nearswap" : "pink"}
+DEFAULT_OUTPUT_DIR = f"{DEFAULT_WORK_DIR}/output"
 def get_scores(RESULT_FILE):
     with open(RESULT_FILE) as f:
         results = json.load(f)["results"]
@@ -52,11 +53,13 @@ def main():
         default = DEFAULT_MERGING_METHOD,
         help = "Merge methods, e.g. --merge_methods linear slerp"
     )
+    parser.add_argument("--output_dir",default=DEFAULT_OUTPUT_DIR)
     args = parser.parse_args()
     name_model = args.name_model.split("/")[-1]
     work_dir = args.work_dir
     ALPHAS = [0.0,0.1,0.2,0.3,0.4,0.5]
     METHOD_LISTS = args.merge_methods
+    output_dir = args.output_dir
     list_scores = {}
     for method in METHOD_LISTS:
         scores = []
@@ -86,10 +89,10 @@ def main():
     plt.xlabel("Weight")
     plt.ylabel("Score")
     plt.legend(loc = "lower left")
-    plt.savefig(f"SuperGLUE_BenchMark{name_model}",dpi = 300,bbox_inches = "tight")
+    output_img_path = f"{output_dir}/SuperGLUE_BenchMark{name_model}.png"
+    plt.savefig(output_img_path,dpi = 300,bbox_inches = "tight")
 
 if __name__ == "__main__":
     main()
-
     
 
