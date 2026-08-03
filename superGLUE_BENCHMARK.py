@@ -2,7 +2,7 @@
 Dependency:
 git clone --depth 1 https://github.com/EleutherAI/lm-evaluation-harness
 cd lm-evaluation-harness
-pip install -e .
+pip install -e ".[hf]"
 '''
 from pathlib import Path
 import argparse,os
@@ -11,6 +11,7 @@ import subprocess
 import json
 import numpy as np
 import matplotlib.pyplot as plt
+import csv
 # No need to import more stuff becuz we'll do it in kaggle inferface
 DEFAULT_NAME_MODEL = "ComCom/gpt2-small"
 DEFAULT_WORK_DIR = "/kaggle/working/"
@@ -18,6 +19,9 @@ DEFAULT_MERGING_METHOD = ["linear","karcher","slerp","nuslerp","ties","della","n
 METHOD_TO_COLOR = {"linear" : "blue","karcher" : "orange",
                    "slerp" : "green","nuslerp" : "red","ties" : "purple","della" : "brown","nearswap" : "pink"}
 DEFAULT_OUTPUT_DIR = f"{DEFAULT_WORK_DIR}/output"
+CSV_COLUMNS = ["BoolQ","CB","COPA","MultiRC","ReCoRD","RTE","WiC","WSC"]
+ALPHAS = [0.0,0.1,0.2,0.3,0.4,0.5]
+MAX_LENGTH = 1024
 def get_scores(RESULT_FILE):
     with open(RESULT_FILE) as f:
         results = json.load(f)["results"]
@@ -39,8 +43,67 @@ def get_scores(RESULT_FILE):
             "wsc": results["wsc"]["acc,none"],
         }
         overall_score = np.mean(list(task_scores.values()))
-    return overall_score
+    task_scores['overall_score'] = overall_score
+    return task_scores
+def find_latest_result(output_dir: Path) -> Path:
+    result_files = list(output_dir.rglob("results_*.json"))
+    if not result_files:
+        raise FileNotFoundError(
+            f"Không tìm thấy results_*.json trong {output_dir}")
+    return max(
+        result_files,
+        key=lambda path: path.stat().st_mtime) # Tim File moi nhat
+def evaluate_model(
+    repo_id: str,
+    output_dir: Path,
+    max_length: int,
+    num_processes: int,
+) -> dict[str, float]:
+    output_dir.mkdir(parents=True, exist_ok=True)
 
+    command = [
+        "accelerate",
+        "launch",
+        "--num_processes",
+        str(num_processes),
+        "--num_machines",
+        "1",
+        "--mixed_precision",
+        "fp16",
+        "--dynamo_backend",
+        "no",
+    ]
+    if num_processes > 1:
+        command.append("--multi_gpu")
+    command.extend([
+        "-m",
+        "lm_eval",
+        "run",
+        "--model",
+        "hf",
+        "--model_args",
+        (
+            f"pretrained={repo_id},"
+            "backend=causal,"
+            "truncation=True,"
+            f"max_length={max_length}"
+        ),
+        "--tasks",
+        "super-glue-lm-eval-v1",
+        "--num_fewshot",
+        "0",
+        "--batch_size",
+        "auto:4",
+        "--cache_requests",
+        "true",
+        "--output_path",
+        str(output_dir),
+    ])
+    print(f"\nEvaluating: {repo_id}")
+    subprocess.run(command, check=True)
+    result_file = find_latest_result(output_dir)
+    print(f"Result file: {result_file}")
+    return get_scores(result_file)
 
 def main():
     parser =argparse.ArgumentParser()
@@ -54,35 +117,42 @@ def main():
         help = "Merge methods, e.g. --merge_methods linear slerp"
     )
     parser.add_argument("--output_dir",default=DEFAULT_OUTPUT_DIR)
+    parser.add_argument("--get_every_single_scores",
+                        action = "store_true",
+                        help = "Get the csv_file")
     args = parser.parse_args()
     name_model = args.name_model.split("/")[-1]
     work_dir = args.work_dir
-    ALPHAS = [0.0,0.1,0.2,0.3,0.4,0.5]
-    METHOD_LISTS = args.merge_methods
+    method_lists = args.merge_methods
     output_dir = args.output_dir
     list_scores = {}
-    for method in METHOD_LISTS:
-        scores = []
+    #Pretrained Scores
+    pretrained_repo_id = args.name_model
+    pretrained_scores = evaluate_model(pretrained_repo_id,output_dir,max_length = MAX_LENGTH,num_processes=2)
+    csv_rows = [("pretrained","-",pretrained_scores)]
+    for method in method_lists:
+        method_scores = []
         output_path = f"{work_dir}/output/{method}"
         for alpha in ALPHAS:
-            command = [
-                "accelerate","launch",
-                "--multi_gpu",
-                "--num_processes", "2",
-                "-m","lm_eval","run",
-                "--model", "hf",
-                "--model_args",f"pretrained=trinhkhng/{method}_Merged_{name_model}_{alpha:.1f},backend=causal,truncation=True,max_length=1024",
-                "--tasks", "super-glue-lm-eval-v1",
-                "--num_fewshot", "0",
-                "--batch_size", "auto",
-                "--output_path", output_path
-            ]
-            result = subprocess.run(command,check = True)
-        list_path = list(output_path.rglob("results_*.json"))
-        list_path = sorted(list_path) # Sort theo thứ tự từ lâu nhất đến mới nhất(0.0 -> 0.5)
-        scores = [get_scores(path) for path in list_path]
-        list_scores[method] = scores
-        x = np.arange(0.0,0.6,0.1)
+            if np.isclose(alpha, 0.0):
+                            current_scores = pretrained_scores
+            else:
+                repo_id = (
+                    f"{args.hf_namespace}/"
+                    f"{method}_Merged_{name_model}_{alpha:.1f}"
+                )
+                current_scores = evaluate_model(
+                    repo_id=repo_id,
+                    output_dir=output_path,
+                    max_length=MAX_LENGTH,
+                    num_processes=2,
+                )
+            method_scores.append(current_scores['overall_scores'])
+            if(args.get_every_single_scores and (np.isclose(alpha,0.1) or np.isclose(alpha,0.5)) ):
+                 csv_rows.append(method,alpha,current_scores)
+        list_scores[method] = method_scores
+
+    x = np.arange(0.0,0.6,0.1)
     for method,scores in list_scores.items():
         color = METHOD_TO_COLOR[method]
         plt.plot(x,scores,color = color,label=method,marker = "o")
@@ -91,6 +161,24 @@ def main():
     plt.legend(loc = "lower left")
     output_img_path = f"{output_dir}/SuperGLUE_BenchMark{name_model}.png"
     plt.savefig(output_img_path,dpi = 300,bbox_inches = "tight")
+
+
+    if args.get_every_single_scores:
+        csv_path = (
+            output_dir
+            / f"SuperGLUE_Benchmark_{name_model}.csv")
+        with csv_path.open('w',encoding = 'utf-8') as file:
+            writer = csv.writer(file)
+            writer.writerow(CSV_COLUMNS)
+            for method,alpha,scores in csv_rows:
+                writer.writerow([method,
+                                 alpha,
+                                 *[scores[key.lower()] for key in CSV_COLUMNS]])
+    print(f"Saved CSV: {csv_path}")
+
+
+
+
 
 if __name__ == "__main__":
     main()
