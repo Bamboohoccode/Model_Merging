@@ -121,7 +121,7 @@ def main() -> None:
     parser.add_argument("--DEVICE",default='cpu')
     args = parser.parse_args()
     epochs = args.epochs    
-    device = args.device
+    device = args.DEVICE
     BASE_MODEL = args.name_model
     name_model = BASE_MODEL.split('/')[-1]
     BIAS_DIR = os.path.join(args.work_dir,f"{name_model}_finetuned.pth")
