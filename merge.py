@@ -23,7 +23,7 @@ def unwrap_state_dict(checkpoint: Any) -> dict[str, torch.Tensor]:
             return value
 
     return checkpoint
-DEFAULT_MERGING_METHOD = ["linear","karcher_mean","slerp","nuslerp","ties","della","nearswap"]
+DEFAULT_MERGING_METHOD = ["linear","karcher","slerp","nuslerp","ties","della","nearswap"]
 DEFAULT_BASE_MODEL = "ComCom/gpt2-small"
 DEFAULT_WORK_DIR = "/kaggle/working"
 DEFAULT_HF_NAMESPACE = "trinhkhng"
@@ -121,6 +121,7 @@ def main() -> None:
     # Merging
     list_merge_methods = args.merge_methods
     for method in list_merge_methods:
+        print(f"Merge method: {method}")
         for alpha in args.alphas:
             output_dir = work_dir / f"Merged_{model_name}_{alpha:.1f}"
             if output_dir.exists():

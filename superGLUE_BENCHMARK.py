@@ -14,8 +14,8 @@ import matplotlib.pyplot as plt
 # No need to import more stuff becuz we'll do it in kaggle inferface
 DEFAULT_NAME_MODEL = "ComCom/gpt2-small"
 DEFAULT_WORK_DIR = "/kaggle/working/"
-DEFAULT_MERGING_METHOD = ["linear","karcher_mean","slerp","nuslerp","ties","della","nearswap"]
-METHOD_TO_COLOR = {"linear" : "blue","karcher_mean" : "orange",
+DEFAULT_MERGING_METHOD = ["linear","karcher","slerp","nuslerp","ties","della","nearswap"]
+METHOD_TO_COLOR = {"linear" : "blue","karcher" : "orange",
                    "slerp" : "green","nuslerp" : "red","ties" : "purple","della" : "brown","nearswap" : "pink"}
 def get_scores(RESULT_FILE):
     with open(RESULT_FILE) as f:

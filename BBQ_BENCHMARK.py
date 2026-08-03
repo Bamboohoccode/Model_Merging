@@ -98,8 +98,8 @@ DEFAULT_HF_NAMESPACE = "trinhkhng"
 DEFAULT_NAME_MODEL = "ComCom/gpt2-small"
 DEFAULT_WORK_DIR = "/kaggle/working/"
 ALPHAS = [0.0,0.1,0.2,0.3,0.4,0.5]
-DEFAULT_MERGING_METHOD = ["linear","karcher_mean","slerp","nuslerp","ties","della","nearswap"]
-METHOD_TO_COLOR = {"linear" : "blue","karcher_mean" : "orange",
+DEFAULT_MERGING_METHOD = ["linear","karcher","slerp","nuslerp","ties","della","nearswap"]
+METHOD_TO_COLOR = {"linear" : "blue","karcher" : "orange",
                    "slerp" : "green","nuslerp" : "red","ties" : "purple","della" : "brown","nearswap" : "pink"}
 def main():
     parser = argparse.ArgumentParser()
@@ -154,8 +154,8 @@ def main():
     plt.ylabel("Score")
     plt.legend(loc = "lower left")
     plt.savefig(f"BBQ_BenchMARK_{name_model}",dpi = 300,bbox_inches = "tight")
-
-main()
+if __name__ == "__main__":
+    main()
 
     
 
