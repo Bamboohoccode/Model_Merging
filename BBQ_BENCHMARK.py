@@ -155,5 +155,7 @@ def main():
     plt.legend(loc = "lower left")
     plt.savefig(f"BBQ_BenchMARK_{name_model}",dpi = 300,bbox_inches = "tight")
 
+main()
+
     
 
