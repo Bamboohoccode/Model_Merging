@@ -15,6 +15,7 @@ import csv
 # No need to import more stuff becuz we'll do it in kaggle inferface
 DEFAULT_NAME_MODEL = "ComCom/gpt2-small"
 DEFAULT_WORK_DIR = "/kaggle/working/"
+DEFAULT_HF_NAMESPACE = "trinhkhng"
 DEFAULT_MERGING_METHOD = ["linear","karcher","slerp","nuslerp","ties","della","nearswap"]
 METHOD_TO_COLOR = {"linear" : "blue","karcher" : "orange",
                    "slerp" : "green","nuslerp" : "red","ties" : "purple","della" : "brown","nearswap" : "pink"}
@@ -22,6 +23,7 @@ DEFAULT_OUTPUT_DIR = f"{DEFAULT_WORK_DIR}/output"
 CSV_COLUMNS = ["BoolQ","CB","COPA","MultiRC","ReCoRD","RTE","WiC","WSC"]
 ALPHAS = [0.0,0.1,0.2,0.3,0.4,0.5]
 MAX_LENGTH = 1024
+
 def get_scores(RESULT_FILE):
     with open(RESULT_FILE) as f:
         results = json.load(f)["results"]
@@ -109,6 +111,7 @@ def main():
     parser =argparse.ArgumentParser()
     parser.add_argument("--name_model",default=DEFAULT_NAME_MODEL)
     parser.add_argument("--work_dir",default=DEFAULT_WORK_DIR)
+    parser.add_argument("--hf_namespace",default=DEFAULT_HF_NAMESPACE)
     parser.add_argument(
         "--merge_methods",
         nargs = "+",
@@ -122,9 +125,9 @@ def main():
                         help = "Get the csv_file")
     args = parser.parse_args()
     name_model = args.name_model.split("/")[-1]
-    work_dir = args.work_dir
+    work_dir = Path(args.work_dir)
     method_lists = args.merge_methods
-    output_dir = args.output_dir
+    output_dir = Path(args.output_dir)
     list_scores = {}
     #Pretrained Scores
     pretrained_repo_id = args.name_model
@@ -147,9 +150,9 @@ def main():
                     max_length=MAX_LENGTH,
                     num_processes=2,
                 )
-            method_scores.append(current_scores['overall_scores'])
+            method_scores.append(current_scores['overall_score'])
             if(args.get_every_single_scores and (np.isclose(alpha,0.1) or np.isclose(alpha,0.5)) ):
-                 csv_rows.append(method,alpha,current_scores)
+                 csv_rows.append((method,alpha,current_scores))
         list_scores[method] = method_scores
 
     x = np.arange(0.0,0.6,0.1)
@@ -174,7 +177,7 @@ def main():
                 writer.writerow([method,
                                  alpha,
                                  *[scores[key.lower()] for key in CSV_COLUMNS]])
-    print(f"Saved CSV: {csv_path}")
+        print(f"Saved CSV: {csv_path}")
 
 
 
