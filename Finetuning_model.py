@@ -20,11 +20,8 @@ DEFAULT_lr = 3e-5
 DEFAULT_HF_NAMESPACE = "trinhkhng"
 DEFAULT_NAME_MODEL = "ComCom/gpt2-small"
 DEFAULT_WORK_DIR = "/kaggle/working/"
-DTYPE_MAP = {
-    "float16": torch.float16,
-    "float32": torch.float32,
-    "bfloat16": torch.bfloat16,
-}
+TRAIN_DTYPE = torch.float32
+SAVE_DTYPE = torch.float16
 class StereoSet_DataSet(Dataset):
     def __init__(self, inputs, tokenizer, max_length=128):
         self.inputs = inputs
@@ -179,7 +176,10 @@ def train(
         )
 
     cpu_state_dict = {
-        key: value.detach().cpu()
+        key: value.detach().to(
+            device="cpu",
+            dtype=SAVE_DTYPE,
+        )
         for key, value in model.state_dict().items()
     }
     torch.save(cpu_state_dict, output_dir)
@@ -198,16 +198,10 @@ def main() -> None:
                         default="balanced",
                         choices=["balanced", "auto", "balanced_low_0"])
     parser.add_argument("--batch_size",type = int,default= BATCH_SIZE)
-    parser.add_argument(
-        "--dtype_model",
-        choices=DTYPE_MAP.keys(),
-        default="float16",
-    )
     args = parser.parse_args()
     epochs = args.epochs
     batch_size = args.batch_size    
     device = args.DEVICE
-    dtype_model = args.dtype_model
     BASE_MODEL = args.name_model
     name_model = BASE_MODEL.split('/')[-1]
     BIAS_DIR = os.path.join(args.work_dir,f"{name_model}_finetuned.pth")
@@ -217,7 +211,7 @@ def main() -> None:
     tokenizer.padding_side = "left"
     model = AutoModelForCausalLM.from_pretrained(BASE_MODEL,
                                                 device_map=device,
-                                                dtype=dtype_model,
+                                                dtype=TRAIN_DTYPE,
                                                 max_memory={
                                                     0: "13GiB",
                                                     1: "13GiB",
