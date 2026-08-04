@@ -194,7 +194,7 @@ def main():
     plt.xlabel("Weight")
     plt.ylabel("Score")
     plt.legend(loc = "lower left")
-    output_img_path = f"{output_dir}/HONEST_BenchMark{name_model}.png"
+    output_img_path = f"{output_dir}/HONEST_BenchMark{short_name_model}.png"
     plt.savefig(output_img_path,dpi = 300,bbox_inches = "tight")
 
 if __name__ == "__main__":

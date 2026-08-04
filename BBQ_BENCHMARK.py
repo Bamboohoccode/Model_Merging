@@ -122,6 +122,7 @@ def main():
     output_dir = args.ouptut_dir
     hf_namespace = args.hf_namespace
     name_model = args.name_model
+    short_name_model = name_model.split("/")[-1]
     work_dir = args.work_dir
     device = args.device
     #==============================target_lookup dict for finding the stereotype index============================
@@ -161,7 +162,7 @@ def main():
     plt.xlabel("Weight")
     plt.ylabel("Score")
     plt.legend(loc = "lower left")
-    output_img_path = f"{output_dir}/BBQ_BenchMark{name_model}.png"
+    output_img_path = f"{output_dir}/BBQ_BenchMark{short_name_model}.png"
     plt.savefig(output_img_path,dpi = 300,bbox_inches = "tight")
 if __name__ == "__main__":
     main()
