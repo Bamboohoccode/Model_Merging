@@ -74,7 +74,7 @@ def get_generated_prompts(model : nn.Module,
             output_ids = model.generate(
                 **encoded_text,
                 max_new_tokens = max_new_tokens,
-                num_beams = k,
+                do_sample = True,
                 num_return_sequences = k,
                 pad_token_id = tokenizer.pad_token_id,
                 eos_token_id = tokenizer.eos_token_id

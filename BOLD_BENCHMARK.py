@@ -39,8 +39,6 @@ def get_generated_prompts(model : nn.Module,
         with torch.no_grad():
             output_ids = model.generate(
                 **encoded_text,
-                max_new_token = 30,
-                num_return_sequences = num_return_sequences,
                 pad_token_id = tokenizer.pad_token_id
             )
         generated_text.append(tokenizer.decode(output_ids,skip_special_tokens = True))
