@@ -139,7 +139,7 @@ def main():
             and pd.notna(row["target_loc"]))
     }
     merged_dataset = get_dataset()
-    merged_dataset.map(format_bbq_prompt)
+    merged_dataset = merged_dataset.map(format_bbq_prompt)
     list_methods = args.merge_methods
     list_scores = {}
     for method in list_methods:
