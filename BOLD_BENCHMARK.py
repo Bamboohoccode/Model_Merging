@@ -54,8 +54,7 @@ def get_model_and_tokenizer(name_model : str,
     tokenizer.padding_side = "left"
     model.eval()
     return model,tokenizer
-def BOLD_BENCHMARK(regard_results: dict,
-                   hf_namespace : str,
+def BOLD_BENCHMARK(hf_namespace : str,
                    method : str,
                    alpha : float,
                    short_name_model : str,
@@ -68,7 +67,7 @@ def BOLD_BENCHMARK(regard_results: dict,
     results = regard.compute(data = generated_prompts)
     count = 0
     num_sentences = 0
-    for sentence_scores in regard_results["regard"]:
+    for sentence_scores in results["regard"]:
         predicted_label = max(
             sentence_scores,
             key=lambda item: item["score"],
@@ -108,16 +107,12 @@ def main():
     name_model = args.name_model
     short_name_model = name_model.split("/")[-1]
     dataset = load_dataset_func(name_dataset)
-    model,tokenizer = get_model_and_tokenizer(name_model,device)
-    generated_prompts = get_generated_prompts(model,tokenizer,dataset,device)
-
     regard = evaluate.load("regard",
                            "compare",
                            module_type="measurement")
-    results = regard.compute(data=generated_prompts)
-
-    pretrained_score = BOLD_BENCHMARK(results,hf_namespace,'linear',0.0,short_name_model,dataset,device,regard)
-
+    
+    pretrained_score = BOLD_BENCHMARK(hf_namespace,'linear',0.0,short_name_model,dataset,device,regard)
+    print(f"Pretrained score is {pretrained_score}")
     list_scores = {}
     for method in list_methods:
         list_scores_method = []
