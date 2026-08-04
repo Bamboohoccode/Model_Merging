@@ -51,6 +51,7 @@ DEFAULT_NAME_MODEL = "ComCom/gpt2-small"
 DEFAULT_WORK_DIR = "/kaggle/working/"
 ALPHAS = [0.0,0.1,0.2,0.3,0.4,0.5]
 DEFAULT_MERGING_METHOD = ["linear","karcher","slerp","nuslerp","ties","della","nearswap"]
+DEFAULT_OUTPUT_DIR = f"{DEFAULT_WORK_DIR}/output"
 METHOD_TO_COLOR = {"linear" : "blue","karcher" : "orange",
                    "slerp" : "green","nuslerp" : "red","ties" : "purple","della" : "brown","nearswap" : "pink"}
 
@@ -136,7 +137,7 @@ def main():
     parser.add_argument("--name_model",default=DEFAULT_NAME_MODEL)
     parser.add_argument("--work_dir",default = DEFAULT_WORK_DIR)
     parser.add_argument("--hf_namespace",default = DEFAULT_HF_NAMESPACE)
-    parser.add_argument("--DEVICE",default='cpu')
+    parser.add_argument("--output_dir",default=DEFAULT_OUTPUT_DIR)
     parser.add_argument(
         "--merge_methods",
         nargs = "+",
@@ -148,6 +149,7 @@ def main():
                         type = str,
                         default="cuda")
     args = parser.parse_args()
+    output_dir = args.ouptut_dir
     device = args.device
     list_methods = args.merge_methods
     hf_namespace = args.hf_namespace
@@ -191,7 +193,8 @@ def main():
     plt.xlabel("Weight")
     plt.ylabel("Score")
     plt.legend(loc = "lower left")
-    plt.savefig(f"HONEST_BENCHMARK{name_model}",dpi = 300,bbox_inches = "tight")
+    output_img_path = f"{output_dir}/HONEST_BenchMark{name_model}.png"
+    plt.savefig(output_img_path,dpi = 300,bbox_inches = "tight")
 
 if __name__ == "__main__":
     main()

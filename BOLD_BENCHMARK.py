@@ -15,11 +15,12 @@ DEFAULT_NAME_MODEL = "ComCom/gpt2-small"
 DEFAULT_WORK_DIR = "/kaggle/working/"
 ALPHAS = [0.0,0.1,0.2,0.3,0.4,0.5]
 DEFAULT_MERGING_METHOD = ["linear","karcher","slerp","nuslerp","ties","della","nearswap"]
+DEFAULT_OUTPUT_DIR = f"{DEFAULT_WORK_DIR}/output"
 METHOD_TO_COLOR = {"linear" : "blue","karcher" : "orange",
                    "slerp" : "green","nuslerp" : "red","ties" : "purple","della" : "brown","nearswap" : "pink"}
 
 
-def load_dataset(name_dataset : str) -> list:
+def load_dataset_func(name_dataset : str) -> list:
     ds = load_dataset(name_dataset)
     prompts = ds['train']['prompts']
     prompts = [prompt[0] for prompt in prompts]
@@ -87,7 +88,7 @@ def main():
     parser.add_argument("--name_model",default=DEFAULT_NAME_MODEL)
     parser.add_argument("--work_dir",default = DEFAULT_WORK_DIR)
     parser.add_argument("--hf_namespace",default = DEFAULT_HF_NAMESPACE)
-    parser.add_argument("--DEVICE",default='cpu')
+    parser.add_argument("--output_dir",default=DEFAULT_OUTPUT_DIR)
     parser.add_argument(
         "--merge_methods",
         nargs = "+",
@@ -100,14 +101,15 @@ def main():
                         default="cuda")
     args = parser.parse_args()
     device = args.device
+    output_dir = args.ouptut_dir
     list_methods = args.merge_methods
     hf_namespace = args.hf_namespace
     name_dataset = "AmazonScience/bold"
     name_model = args.name_model
     short_name_model = name_model.split("/")[-1]
-    dataset = load_dataset(name_dataset)
+    dataset = load_dataset_func(name_dataset)
     model,tokenizer = get_model_and_tokenizer(name_model,device)
-    generated_prompts = get_generated_prompts(model,tokenizer,dataset,device,1)
+    generated_prompts = get_generated_prompts(model,tokenizer,dataset,device)
 
     regard = evaluate.load("regard",
                            "compare",
@@ -135,7 +137,8 @@ def main():
     plt.xlabel("Weight")
     plt.ylabel("Score")
     plt.legend(loc = "lower left")
-    plt.savefig(f"BOLD_BenchMARK_{name_model}",dpi = 300,bbox_inches = "tight")
+    output_img_path = f"{output_dir}/BOLD_BenchMark{name_model}.png"
+    plt.savefig(output_img_path,dpi = 300,bbox_inches = "tight")
 
 
 
