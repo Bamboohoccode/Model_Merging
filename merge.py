@@ -161,7 +161,7 @@ def main() -> None:
     # Merging
     list_merge_methods = args.merge_methods
     for method in list_merge_methods:
-        config_path = work_dir / "Model_merging"/"yml_folder"/f"{method}.yml"
+        config_path = work_dir / "Model_Merging"/"yml_folder"/f"{method}.yml"
         print(f"Merge method: {method}")
         for alpha in args.alphas:
             output_dir = work_dir / f"Merged_{model_name}_{alpha:.1f}"
