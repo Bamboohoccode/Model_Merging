@@ -32,7 +32,7 @@ def get_generated_prompts(model : nn.Module,
                           num_return_sequences : int = 10,
                           ) -> list:
     generated_text = []
-    for prompt in dataset:
+    for prompt in tqdm(dataset):
         encoded_text = tokenizer(prompt,
                                  return_tensors = 'pt',
                                  ).to(device)
