@@ -119,7 +119,7 @@ def main():
                         type = str,
                         default="cuda")
     args = parser.parse_args()
-    output_dir = args.ouptut_dir
+    output_dir = args.output_dir
     hf_namespace = args.hf_namespace
     name_model = args.name_model
     short_name_model = name_model.split("/")[-1]
