@@ -1,3 +1,4 @@
+from __future__ import annotations
 '''PIPELINE: !!!
 
 Load English HONEST templates
@@ -30,7 +31,6 @@ Dependency:
     transformers \
     accelerate \
 '''
-from __future__ import annotations
 from honest import honest
 import torch
 import transformers

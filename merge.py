@@ -1,9 +1,9 @@
+from __future__ import annotations
 '''
 Dependency:
 !pip install pyyaml
 '''
 
-from __future__ import annotations
 
 import argparse
 import gc
