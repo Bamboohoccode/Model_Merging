@@ -120,7 +120,7 @@ def main():
             if np.isclose(alpha,0.0):
                 score = pretrained_score
             else:
-                score = BOLD_BENCHMARK(results,hf_namespace,method,alpha,short_name_model,dataset,device,regard)
+                score = BOLD_BENCHMARK(hf_namespace,method,alpha,short_name_model,dataset,device,regard)
             list_scores_method.append(score)
         
         list_scores[method] = list_scores_method
