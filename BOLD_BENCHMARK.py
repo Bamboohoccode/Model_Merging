@@ -100,7 +100,7 @@ def main():
                         default="cuda")
     args = parser.parse_args()
     device = args.device
-    output_dir = args.ouptut_dir
+    output_dir = args.output_dir
     list_methods = args.merge_methods
     hf_namespace = args.hf_namespace
     name_dataset = "AmazonScience/bold"
