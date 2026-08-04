@@ -101,30 +101,87 @@ def train(
     epochs,
 ):
     model.train()
+    model.config.use_cache = False
 
-    input_device = model.get_input_embeddings().weight.device
-    scaler = torch.amp.GradScaler("cuda")
     accumulation_steps = GRADIENT_ACCUMULATION_STEPS
+    input_device = model.get_input_embeddings().weight.device
+
+    # GradScaler yêu cầu model parameters/gradients FP32
+    parameter_dtype = next(model.parameters()).dtype
+    if parameter_dtype != torch.float32:
+        raise TypeError(
+            "Khi dùng GradScaler, hãy load model với dtype=torch.float32. "
+            f"Dtype hiện tại: {parameter_dtype}"
+        )
+
+    scaler = torch.amp.GradScaler(
+        "cuda",
+        init_scale=2**10,
+        growth_interval=2000,
+    )
 
     optimizer.zero_grad(set_to_none=True)
 
     for epoch in range(epochs):
         total_loss = 0.0
+        valid_loss_count = 0
+        successful_updates = 0
+        skipped_updates = 0
+        skip_current_group = False
 
         for step, batch in enumerate(dataloader):
-            input_ids = batch["input_ids"].to(input_device)
-            attention_mask = batch["attention_mask"].to(input_device)
-            labels = batch["labels"].to(input_device)
-
-            # Kích thước thật của nhóm accumulation hiện tại
+            # Xác định nhóm gradient accumulation hiện tại
             group_start = (
                 step // accumulation_steps
             ) * accumulation_steps
 
-            group_size = min(
-                accumulation_steps,
-                len(dataloader) - group_start,
+            group_end = min(
+                group_start + accumulation_steps,
+                len(dataloader),
             )
+
+            group_size = group_end - group_start
+            is_group_start = step == group_start
+            is_group_end = (step + 1) == group_end
+
+            if is_group_start:
+                skip_current_group = False
+                optimizer.zero_grad(set_to_none=True)
+
+            # Nếu một batch trong nhóm bị NaN thì bỏ cả nhóm
+            if skip_current_group:
+                if is_group_end:
+                    optimizer.zero_grad(set_to_none=True)
+                continue
+
+            input_ids = batch["input_ids"].to(
+                input_device,
+                non_blocking=True,
+            )
+
+            attention_mask = batch["attention_mask"].to(
+                input_device,
+                non_blocking=True,
+            )
+
+            labels = batch["labels"].to(
+                input_device,
+                non_blocking=True,
+            )
+
+            # Sau khi shift phải còn ít nhất một target hợp lệ
+            valid_targets = (labels[:, 1:] != -100).sum()
+
+            if valid_targets.item() == 0:
+                print(
+                    f"Skip accumulation group tại "
+                    f"epoch={epoch + 1}, step={step + 1}: "
+                    "không có target hợp lệ"
+                )
+
+                skip_current_group = True
+                optimizer.zero_grad(set_to_none=True)
+                continue
 
             with torch.autocast(
                 device_type="cuda",
@@ -138,52 +195,104 @@ def train(
                 )
 
                 raw_loss = outputs.loss
-                loss = raw_loss / group_size
 
-            scaler.scale(loss).backward()
-
-            should_update = (
-                (step + 1) % accumulation_steps == 0
-                or step + 1 == len(dataloader)
-            )
-
-            if should_update:
-                scaler.unscale_(optimizer)
-
-                torch.nn.utils.clip_grad_norm_(
-                    model.parameters(),
-                    max_norm=1.0,
+            # Không backward nếu forward loss đã NaN/Inf
+            if not torch.isfinite(raw_loss):
+                print(
+                    f"Skip accumulation group tại "
+                    f"epoch={epoch + 1}, step={step + 1}: "
+                    f"loss={raw_loss.item()}, "
+                    f"sequence_length={attention_mask.sum().item()}"
                 )
 
-                scaler.step(optimizer)
-                scaler.update()
-
+                skip_current_group = True
                 optimizer.zero_grad(set_to_none=True)
-                lr_scheduler.step()
+                continue
 
-            total_loss += raw_loss.detach().float().item()
+            # Chia theo kích thước thật của nhóm cuối
+            scaled_loss = raw_loss / group_size
+            scaler.scale(scaled_loss).backward()
+
+            loss_value = raw_loss.detach().float().item()
+            total_loss += loss_value
+            valid_loss_count += 1
 
             if (step + 1) % 25 == 0:
                 print(
                     f"Epoch {epoch + 1}/{epochs} | "
                     f"Step {step + 1}/{len(dataloader)} | "
-                    f"Loss {raw_loss.item():.4f}"
+                    f"Loss {loss_value:.6f} | "
+                    f"Scale {scaler.get_scale():.1f}"
                 )
 
-        print(
-            f"Epoch {epoch + 1} average loss: "
-            f"{total_loss / len(dataloader):.4f}"
+            if not is_group_end:
+                continue
+
+            # Chuyển scaled gradients về giá trị thật
+            scaler.unscale_(optimizer)
+
+            grad_norm = torch.nn.utils.clip_grad_norm_(
+                model.parameters(),
+                max_norm=1.0,
+            )
+
+            scale_before = scaler.get_scale()
+
+            # Nếu gradient có Inf/NaN, GradScaler sẽ không gọi
+            # optimizer.step()
+            scaler.step(optimizer)
+            scaler.update()
+
+            scale_after = scaler.get_scale()
+
+            optimizer.zero_grad(set_to_none=True)
+
+            optimizer_was_skipped = scale_after < scale_before
+
+            if optimizer_was_skipped:
+                skipped_updates += 1
+
+                print(
+                    f"Optimizer step bị bỏ qua tại "
+                    f"epoch={epoch + 1}, step={step + 1} | "
+                    f"grad_norm={float(grad_norm):.4f} | "
+                    f"scale={scale_before:.1f}->{scale_after:.1f}"
+                )
+            else:
+                # Chỉ chạy scheduler nếu optimizer thực sự update
+                lr_scheduler.step()
+                successful_updates += 1
+
+        average_loss = (
+            total_loss / valid_loss_count
+            if valid_loss_count > 0
+            else float("nan")
         )
 
+        current_lr = optimizer.param_groups[0]["lr"]
+
+        print(
+            f"Epoch {epoch + 1}/{epochs} hoàn thành | "
+            f"Average loss={average_loss:.6f} | "
+            f"Successful updates={successful_updates} | "
+            f"Skipped updates={skipped_updates} | "
+            f"LR={current_lr:.8f}"
+        )
+
+    # Lưu checkpoint FP16 trên CPU để giảm RAM và dung lượng file
     cpu_state_dict = {
         key: value.detach().to(
             device="cpu",
-            dtype=SAVE_DTYPE,
+            dtype=torch.float16,
         )
         for key, value in model.state_dict().items()
     }
+
     torch.save(cpu_state_dict, output_dir)
+
     del cpu_state_dict
+    gc.collect()
+
     print(f"Saved model: {output_dir}")
 def main() -> None:
     parser = argparse.ArgumentParser()
