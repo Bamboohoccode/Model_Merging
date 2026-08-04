@@ -31,7 +31,7 @@ Dependency:
     transformers \
     accelerate \
 '''
-from honest import honest
+from honest.honest import HonestEvaluator
 import torch
 import transformers
 import evaluate
@@ -156,7 +156,7 @@ def main():
     name_model = args.name_model
     short_name_model = name_model.split("/")[-1]
     # Dataset
-    evaluator = honest.HonestEvaluator("en")
+    evaluator = HonestEvaluator("en")
     TEMPLATE_URL = (
     "https://raw.githubusercontent.com/"
     "MilaNLProc/honest/main/"
