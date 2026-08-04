@@ -6,8 +6,10 @@ from tqdm import tqdm
 from pathlib import Path
 import argparse,os
 import shutil
+import gc
 ## CONFIG ==========================================================================================
-BATCH_SIZE = 32
+BATCH_SIZE = 1
+GRADIENT_ACCUMULATION_STEPS = 32
 max_length = 512
 EPOCHS = 30
 weight_decay = 0.01
@@ -86,29 +88,66 @@ def Return_DataLoader(tokenizer,batch_size = 8):
                        shuffle = True,
                        collate_fn = collate_fn)
     return dataloader
-def train(model,dataloader,device,optimizer,lr_scheduler,OUTPUT_DIR,epochs):
+def train(
+    model,
+    dataloader,
+    optimizer,
+    lr_scheduler,
+    OUTPUT_DIR,
+    epochs,):
     model.train()
+    # GPU chứa embedding/input layer
+    input_device = model.get_input_embeddings().weight.device
+    scaler = torch.amp.GradScaler()
+    accumulation_steps = GRADIENT_ACCUMULATION_STEPS
+    optimizer.zero_grad(set_to_none=True)
     for epoch in range(epochs):
-        avg_loss = 0
-        for x,batch in enumerate(dataloader):
-            inputs = batch['input_ids']
-            attn_mask = batch['attention_mask']
-            inputs = inputs.to(device)
-            attn_mask = attn_mask.to(device)
-            outputs = model(input_ids=inputs,
-                            attention_mask=attn_mask,
-                            labels=inputs)
-            loss = outputs.loss
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            avg_loss += loss.item() / len(dataloader)
-            lr_scheduler.step()
-            if((x + 1) % 25 == 0):
-                print(f"Loop: {x+1} ---- Loss : {loss.item()}")
-                
-    torch.save(model.state_dict(), OUTPUT_DIR)
-    print("Saved Model")
+        avg_loss = 0.0
+
+        for step, batch in enumerate(dataloader):
+            input_ids = batch["input_ids"].to(input_device)
+            attention_mask = batch["attention_mask"].to(input_device)
+            labels = batch["labels"].to(input_device)
+            with torch.autocast(
+                device_type="cuda",
+                dtype=torch.float16,):
+                outputs = model(
+                    input_ids=input_ids,
+                    attention_mask=attention_mask,
+                    labels=labels,
+                    use_cache=False)
+                loss = outputs.loss / accumulation_steps
+            scaler.scale(loss).backward()
+            should_update = (
+                (step + 1) % accumulation_steps == 0
+                or step + 1 == len(dataloader)
+            )
+            if should_update:
+                scaler.unscale_(optimizer)
+                torch.nn.utils.clip_grad_norm_(
+                    model.parameters(),
+                    max_norm=1.0)
+                scaler.step(optimizer)
+                scaler.update()
+                optimizer.zero_grad(set_to_none=True)
+                lr_scheduler.step()
+
+            avg_loss += loss.item() * accumulation_steps
+
+            if (step + 1) % 25 == 0:
+                print(
+                    f"Epoch {epoch + 1} | "
+                    f"Step {step + 1} | "
+                    f"Loss {loss.item() * accumulation_steps:.4f}"
+                )
+
+    cpu_state_dict = {
+        key: value.detach().cpu()
+        for key, value in model.state_dict().items()
+    }
+    torch.save(cpu_state_dict, OUTPUT_DIR)
+
+    print(f"Saved model: {OUTPUT_DIR}")
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--name_model",default=DEFAULT_NAME_MODEL)
@@ -120,10 +159,12 @@ def main() -> None:
     parser.add_argument("--hf-namespace", default=DEFAULT_HF_NAMESPACE)
     parser.add_argument("--DEVICE",default='cpu')
     parser.add_argument("--batch_size",type = int,default= BATCH_SIZE)
+    parser.add_argument("--dtype_model", type = torch.dtype,default= torch.float16)
     args = parser.parse_args()
     epochs = args.epochs
     batch_size = args.batch_size    
     device = args.DEVICE
+    dtype_model = args.dtype_model
     BASE_MODEL = args.name_model
     name_model = BASE_MODEL.split('/')[-1]
     BIAS_DIR = os.path.join(args.work_dir,f"{name_model}_finetuned.pth")
@@ -131,7 +172,7 @@ def main() -> None:
     tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"
-    model = AutoModelForCausalLM.from_pretrained(BASE_MODEL, device_map= device, dtype=torch.float32)
+    model = AutoModelForCausalLM.from_pretrained(BASE_MODEL, device_map= device, dtype=dtype_model)
 
 
     dataloader = Return_DataLoader(tokenizer,batch_size = batch_size)
@@ -154,9 +195,11 @@ def main() -> None:
         raise ValueError("The learning_rate_scheduler must be linear or cosine !")    
     # Train
     train(model,dataloader,device,optimizer,lr_scheduler,BIAS_DIR,epochs)
+    del model,tokenizer
+    gc.collect()
 
     # Create inverse model
-    base_model = AutoModelForCausalLM.from_pretrained(BASE_MODEL)
+    base_model = AutoModelForCausalLM.from_pretrained(BASE_MODEL, device_map= device, dtype=dtype_model)
     base_state = base_model.state_dict()
 
     bias_state = torch.load(BIAS_DIR,map_location='cpu',weights_only = True)
@@ -167,32 +210,35 @@ def main() -> None:
         inverse_state[key] = (
             2.0 * base_state[key].detach().cpu().float() - bias_state[key].detach().cpu().float()
         )
+    del base_model
+    gc.collect()
     Inverse_model = AutoModelForCausalLM.from_pretrained(BASE_MODEL,dtype = torch.float32)
     tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
     Inverse_model.load_state_dict(inverse_state,strict = True)
 
     Inverse_model.save_pretrained(DEBIAS_DIR,safe_serialization = True)
     tokenizer.save_pretrained(DEBIAS_DIR)
+    del Inverse_model,tokenizer
+    gc.collect()
     print("Đã lưu thành công DEBIAS Model")
     from huggingface_hub import HfApi
     api = HfApi(token=args.HF_TOKEN)
-    if api is not None:
-        repo_id = f"{args.hf_namespace}/debias_{name_model}"
-        api.create_repo(
-            repo_id=repo_id,
-            repo_type="model",
-            exist_ok=True,
-        )
-        api.upload_folder(
-            repo_id=repo_id,
-            repo_type="model",
-            folder_path=str(DEBIAS_DIR),
-            path_in_repo=".",
-            commit_message=(
-                f"Upload finetuned debias {name_model}"
-            ),
-        )
-        print(f"Uploaded: https://huggingface.co/{repo_id}")
+    repo_id = f"{args.hf_namespace}/debias_{name_model}"
+    api.create_repo(
+        repo_id=repo_id,
+        repo_type="model",
+        exist_ok=True,
+    )
+    api.upload_folder(
+        repo_id=repo_id,
+        repo_type="model",
+        folder_path=str(DEBIAS_DIR),
+        path_in_repo=".",
+        commit_message=(
+            f"Upload finetuned debias {name_model}"
+        ),
+    )
+    print(f"Uploaded: https://huggingface.co/{repo_id}")
     shutil.rmtree(DEBIAS_DIR)
     if(os.path.exists(BIAS_DIR)):
         os.remove(BIAS_DIR)
