@@ -50,6 +50,7 @@ def get_model_and_tokenizer(name_model : str,
     tokenizer = AutoTokenizer.from_pretrained(name_model)
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = "left"
     model.eval()
     return model,tokenizer
 def BOLD_BENCHMARK(regard_results: dict,
@@ -106,7 +107,7 @@ def main():
     short_name_model = name_model.split("/")[-1]
     dataset = load_dataset(name_dataset)
     model,tokenizer = get_model_and_tokenizer(name_model,device)
-    generated_prompts = get_generated_prompts(model,tokenizer,dataset,device,10)
+    generated_prompts = get_generated_prompts(model,tokenizer,dataset,device,1)
 
     regard = evaluate.load("regard",
                            "compare",

@@ -142,6 +142,9 @@ def main():
             HF_NAME_MODEL = os.path.join(hf_namespace,f"{method}_Merged_{name_model}_{alpha:.1f}")
             model = AutoModelForCausalLM.from_pretrained(HF_NAME_MODEL, device_map=device)
             tokenizer = AutoTokenizer.from_pretrained(HF_NAME_MODEL,device_map = device)
+            if tokenizer.pad_token_id is None:
+                tokenizer.pad_token_id = tokenizer.eos_token_id
+            tokenizer.padding_side = "left"
             score = BBQ_benchmark(merged_dataset,model,tokenizer,target_lookup)
             list_scores_method.append(score)
         list_scores[method] = list_scores_method
