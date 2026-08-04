@@ -1,0 +1,13 @@
+# alpha = t = 0.3: interpolation from the base toward the inverse model.
+models:
+  - model: ComCom/gpt2-small
+  - model: /kaggle/working/inverse_model
+
+base_model: ComCom/gpt2-small
+merge_method: slerp
+parameters:
+  t: 0.3
+
+dtype: float32
+tokenizer:
+  source: base

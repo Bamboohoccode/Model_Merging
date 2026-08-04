@@ -45,6 +45,7 @@ import numpy as np
 import torch.nn as nn
 from datasets import load_dataset
 from copy import deepcopy
+import pandas as pd
 DEFAULT_HF_NAMESPACE = "trinhkhng"
 DEFAULT_NAME_MODEL = "ComCom/gpt2-small"
 DEFAULT_WORK_DIR = "/kaggle/working/"
@@ -59,7 +60,7 @@ def get_generated_prompts(model : nn.Module,
                           device : torch.device,
                           k : int = 20,
                           batch_size = 8,
-                          max_new_tokens: int = 30) -> list:
+                          max_new_tokens: int = 10) -> list:
     filled_templates = []
     for i in range(0,len(dataset),batch_size):
         batch_prompts = dataset[i:i+batch_size]
@@ -79,7 +80,7 @@ def get_generated_prompts(model : nn.Module,
             )
         #Chỉ decode Phan Model moi sinh ra !
         decoded = tokenizer.batch_decode(output_ids[:,input_length:],skip_special_tokens = True)
-        for j in range(batch_size):
+        for j in range(len(batch_prompts)):
             texts = decoded[j * k:(j+1) *k]
             texts = [t.strip().lower() for t in texts]
             filled_templates.append(texts)
@@ -94,31 +95,46 @@ def get_model_and_tokenizer(name_model : str,
     tokenizer.padding_side = "left"
     model.eval()
     return model,tokenizer
+def compute_honest_score(
+    evaluator,
+    generated_prompts,
+    k=20,):
+    assert len(generated_prompts) == 420
+    assert all(len(items) == k for items in generated_prompts)
+    inner_scores = evaluator.honest_score_inner_sentence(
+        generated_prompts)
+
+    hurtful_count = sum(
+        result["count"]
+        for result in inner_scores)
+    
+    total_completions = len(generated_prompts) * k
+
+    assert len(inner_scores) == total_completions
+
+    return hurtful_count / total_completions
 def HONEST_BENCHMARK(evaluator,
                    hf_namespace : str,
                    method : str,
                    alpha : float,
-                   masked_templates,
                    short_name_model : str,
                    prompts,
                    device,
-                   max_new_tokens : int = 30,
+                   max_new_tokens : int = 10,
                    k : int = 20) -> int:
     HF_NAME_MODEL = os.path.join(hf_namespace,f"{method}_Merged_{short_name_model}_{alpha:.1f}")
     model,tokenizer = get_model_and_tokenizer(HF_NAME_MODEL,device)
 
-    generated_prompts = get_generated_prompts(model,tokenizer,prompts,device,k,max_new_tokens)
-    honest_score = evaluator.honest(
-        generated_prompts,
-        deepcopy(masked_templates),
-    )
+    generated_prompts = get_generated_prompts(model,tokenizer,prompts,device,k,max_new_tokens= max_new_tokens)
+    print(len(generated_prompts))
+    honest_score = compute_honest_score(evaluator,generated_prompts,k = 20)
     return honest_score
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--name_model",default=DEFAULT_NAME_MODEL)
-    parser.add_argument("--work_dir",default = DEFAULT_NAME_MODEL)
+    parser.add_argument("--work_dir",default = DEFAULT_WORK_DIR)
     parser.add_argument("--hf_namespace",default = DEFAULT_HF_NAMESPACE)
     parser.add_argument("--DEVICE",default='cpu')
     parser.add_argument(
@@ -138,17 +154,23 @@ def main():
     name_model = args.name_model
     short_name_model = name_model.split("/")[-1]
     # Dataset
-    dataset = "all"
     evaluator = honest.HonestEvaluator("en")
-    masked_templates = evaluator.templates(data_set=dataset)
-    template_strings = list(masked_templates.keys())
-    prompts = [
-        template.replace(" [M].", "")
-        for template in template_strings
-    ] #"CAUSAL MODEL KHONG DUNG MASK TOKEN"
+    TEMPLATE_URL = (
+    "https://raw.githubusercontent.com/"
+    "MilaNLProc/honest/main/"
+    "resources/binary/en_template.tsv")
+    templates_df = pd.read_csv(
+        TEMPLATE_URL,
+        sep="\t",)
+    templates_df = (templates_df[templates_df["number"] == "singular"].reset_index(drop=True))
+    assert len(templates_df) == 420
+    template_strings = templates_df["template_masked"].tolist()
+    prompts = [template.replace(" [M].", "")
+                for template in template_strings]#"CAUSAL MODEL KHONG DUNG MASK TOKEN"
 
 
-    pretrained_score = HONEST_BENCHMARK(evaluator,hf_namespace,'linear',0.0,masked_templates,short_name_model,prompts,device)
+    pretrained_score = HONEST_BENCHMARK(evaluator,hf_namespace,'linear',0.0,short_name_model,prompts,device)
+    print(f"Pretrained_score is {pretrained_score}")
 
     list_scores = {}
     for method in list_methods:
@@ -157,7 +179,7 @@ def main():
             if np.isclose(alpha,0.0):
                 score = pretrained_score
             else:
-                score = HONEST_BENCHMARK(evaluator,hf_namespace,method,alpha,masked_templates,short_name_model,prompts,device)
+                score = HONEST_BENCHMARK(evaluator,hf_namespace,method,alpha,short_name_model,prompts,device)
             list_scores_method.append(score)
         
         list_scores[method] = list_scores_method

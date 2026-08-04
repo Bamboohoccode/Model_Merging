@@ -1,4 +1,7 @@
-
+'''
+Dependency:
+!pip install pyyaml
+'''
 
 from __future__ import annotations
 
@@ -28,6 +31,44 @@ DEFAULT_BASE_MODEL = "ComCom/gpt2-small"
 DEFAULT_WORK_DIR = "/kaggle/working"
 DEFAULT_HF_NAMESPACE = "trinhkhng"
 DEFAULT_ALPHAS = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
+def load_yaml(yaml_path : Path | str) -> dict:
+    yaml_path = Path(yaml_path)
+    with yaml_path.open("r",encoding="utf-8") as file:
+        return yaml.safe_load(file)
+def save_yaml(yaml_config : dict,yaml_path : Path | str) -> None:
+    yaml_path = Path(yaml_path)
+    with yaml_path.open("w",encoding= "utf-8") as file :
+        yaml.safe_dump(
+            yaml_config,
+            file)
+def update_config(config : dict,
+                  method : str,
+                  debias_model_dir : str,
+                  base_model_dir : str,
+                  alpha : float = 0.0) -> dict:
+    if(method in {'linear','nuslerp'}):
+        config['models'][0]['parameters']['weight'] = 1.0 - alpha
+        config['models'][1]['parameters']['weight'] = alpha
+        config['models'][0]['model'] = base_model_dir
+        config['models'][1]['model'] = debias_model_dir
+    elif method in {"slerp", "nearswap"}:
+        config["parameters"]["t"] = alpha
+        config['models'][0] = base_model_dir
+        config['models'][1] = debias_model_dir
+        config['base_model'] = base_model_dir
+
+    elif method in {"ties", "della"}:
+        # Với một inverse model, dùng lambda để alpha không bị
+        # normalize: true triệt tiêu.
+        config["parameters"]["lambda"] = alpha
+        config['models'][0] = debias_model_dir
+        config['base_model'] = base_model_dir
+    elif method == 'karcher':
+        config['models'][0] = base_model_dir
+        config['models'][1] = debias_model_dir
+    return config
+        
+
 #----------------------------------------------------------------------------------------------------------------
 def main() -> None:
     parser = argparse.ArgumentParser(
@@ -80,7 +121,6 @@ def main() -> None:
     else:
         debias_model_dir = args.debias_model_dir
     
-    config_path = work_dir / "merge_config.yml"
     model = AutoModelForCausalLM.from_pretrained(
         args.name_model,
         dtype=torch.float32, 
@@ -121,39 +161,22 @@ def main() -> None:
     # Merging
     list_merge_methods = args.merge_methods
     for method in list_merge_methods:
+        config_path = work_dir / "model_merging"/"yml_folder"/f"{method}.yml"
         print(f"Merge method: {method}")
         for alpha in args.alphas:
             output_dir = work_dir / f"Merged_{model_name}_{alpha:.1f}"
             if output_dir.exists():
                 raise FileExistsError(
                     f"Output already exists: {output_dir}. Remove or rename it "
-                    "before rerunning this alpha."
-                )
-
-            config = {
-                "merge_method": method,
-                "models": [
-                    {
-                        "model": str(base_model_dir),
-                        "parameters": {"weight": 1.0 - alpha},
-                    },
-                    {
-                        "model": str(debias_model_dir),
-                        "parameters": {"weight": alpha},
-                    },
-                ],
-                "parameters": {"normalize": True},
-                "dtype": "float32",
-            }
-            with config_path.open("w", encoding="utf-8") as file:
-                yaml.safe_dump(config, file, sort_keys=False)
-
+                    "before rerunning this alpha.")
+            config = load_yaml(config_path)
+            config = update_config(config,method,debias_model_dir,base_model_dir,alpha)
+            save_yaml(config,config_path)
             print(f"Merging alpha={alpha:.1f} -> {output_dir}")
             subprocess.run(
                 ["mergekit-yaml", str(config_path), str(output_dir)],
                 check=True,
             )
-
             if api is not None:
                 repo_id = f"{args.hf_namespace}/{method}_Merged_{model_name}_{alpha:.1f}"
                 api.create_repo(

@@ -1,0 +1,14 @@
+# Current MergeKit computes an equally weighted Karcher mean.
+# It does not expose the paper's alpha as a per-model parameter.
+models:
+  - model: ComCom/gpt2-small
+  - model: /kaggle/working/inverse_model
+
+merge_method: karcher
+parameters:
+  max_iter: 10
+  tol: 1.0e-5
+
+dtype: float32
+tokenizer:
+  source: ComCom/gpt2-small

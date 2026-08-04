@@ -1,0 +1,11 @@
+# NearSwap's t controls similarity-sensitive interpolation strength.
+# It is not mathematically the same as Linear/SLERP alpha.
+models:
+  - model: /kaggle/working/inverse_model
+
+base_model: ComCom/gpt2-small
+merge_method: nearswap
+parameters:
+  t: 0.3
+
+dtype: float32

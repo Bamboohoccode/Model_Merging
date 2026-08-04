@@ -1,0 +1,18 @@
+# With one task vector, use lambda (not weight) as alpha.
+# Otherwise normalize: true cancels the donor weight.
+models:
+  - model: /kaggle/working/inverse_model
+    parameters:
+      weight: 1.0
+      density: 0.5
+
+base_model: ComCom/gpt2-small
+merge_method: ties
+parameters:
+  lambda: 0.3
+  normalize: true
+  int8_mask: true
+
+dtype: float32
+tokenizer:
+  source: base

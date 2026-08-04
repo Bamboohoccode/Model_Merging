@@ -1,0 +1,16 @@
+# alpha = 0.3: contribution of the bias-inverse model.
+models:
+  - model: ComCom/gpt2-small
+    parameters:
+      weight: 0.7
+  - model: /kaggle/working/inverse_model
+    parameters:
+      weight: 0.3
+
+merge_method: linear
+parameters:
+  normalize: true
+
+dtype: float32
+tokenizer:
+  source: ComCom/gpt2-small
