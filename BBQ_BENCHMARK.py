@@ -139,7 +139,7 @@ def main():
     for method in list_methods:
         list_scores_method = []
         for alpha in ALPHAS:
-            HF_NAME_MODEL = os.path.join(hf_namespace,f"Merged_{name_model}_{alpha:.1f}")
+            HF_NAME_MODEL = os.path.join(hf_namespace,f"{method}_Merged_{name_model}_{alpha:.1f}")
             model = AutoModelForCausalLM.from_pretrained(HF_NAME_MODEL, device_map=device)
             tokenizer = AutoTokenizer.from_pretrained(HF_NAME_MODEL,device_map = device)
             score = BBQ_benchmark(merged_dataset,model,tokenizer,target_lookup)
