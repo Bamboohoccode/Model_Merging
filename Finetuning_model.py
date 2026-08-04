@@ -31,7 +31,7 @@ class StereoSet_DataSet(Dataset):
     def __len__(self):
         return len(self.inputs)
 
-def Return_DataLoader(tokenizer):
+def Return_DataLoader(tokenizer,batch_size = 8):
 
     stereoset = DatasetDict({
         "intrasentence": load_dataset(
@@ -82,7 +82,7 @@ def Return_DataLoader(tokenizer):
         return batch
     
     dataloader = DataLoader(dataset = dataset,
-                       batch_size = BATCH_SIZE,
+                       batch_size = batch_size,
                        shuffle = True,
                        collate_fn = collate_fn)
     return dataloader
@@ -119,8 +119,10 @@ def main() -> None:
     parser.add_argument("--HF_TOKEN",default= None)
     parser.add_argument("--hf-namespace", default=DEFAULT_HF_NAMESPACE)
     parser.add_argument("--DEVICE",default='cpu')
+    parser.add_argument("--batch_size",default= BATCH_SIZE)
     args = parser.parse_args()
-    epochs = args.epochs    
+    epochs = args.epochs
+    batch_size = args.batch_size    
     device = args.DEVICE
     BASE_MODEL = args.name_model
     name_model = BASE_MODEL.split('/')[-1]
@@ -132,7 +134,7 @@ def main() -> None:
     model = AutoModelForCausalLM.from_pretrained(BASE_MODEL, device_map= device, dtype=torch.float32)
 
 
-    dataloader = Return_DataLoader(tokenizer)
+    dataloader = Return_DataLoader(tokenizer,batch_size = batch_size)
 
     from transformers import get_linear_schedule_with_warmup,get_cosine_schedule_with_warmup
     lr = args.learning_rate
