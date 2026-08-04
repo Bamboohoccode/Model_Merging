@@ -216,7 +216,7 @@ def main() -> None:
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"
     model = AutoModelForCausalLM.from_pretrained(BASE_MODEL,
-                                                device_map=args.device_map,
+                                                device_map=device,
                                                 dtype=dtype_model,
                                                 max_memory={
                                                     0: "13GiB",
@@ -256,7 +256,6 @@ def main() -> None:
     del lr_scheduler
     del dataloader
     del tokenizer
-
     gc.collect()
     torch.cuda.empty_cache()
 
