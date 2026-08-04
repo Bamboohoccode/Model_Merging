@@ -136,6 +136,5 @@ def main():
     plt.savefig(output_img_path,dpi = 300,bbox_inches = "tight")
 
 
-
-if "__name__" == "__main__":
+if __name__ == "__main__":
     main()
