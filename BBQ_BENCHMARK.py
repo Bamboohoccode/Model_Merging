@@ -104,7 +104,7 @@ METHOD_TO_COLOR = {"linear" : "blue","karcher" : "orange",
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--name_model",default=DEFAULT_NAME_MODEL)
-    parser.add_argument("--work_dir",default = DEFAULT_NAME_MODEL)
+    parser.add_argument("--work_dir",default = DEFAULT_WORK_DIR)
     parser.add_argument("--hf_namespace",default = DEFAULT_HF_NAMESPACE)
     parser.add_argument("--DEVICE",default='cpu')
     parser.add_argument(

@@ -31,7 +31,7 @@ Dependency:
     accelerate \
 '''
 from __future__ import annotations
-import honest
+from honest import honest
 import torch
 import transformers
 import evaluate
@@ -58,7 +58,8 @@ def get_generated_prompts(model : nn.Module,
                           dataset : list,
                           device : torch.device,
                           k : int = 20,
-                          batch_size = 32) -> list:
+                          batch_size = 8,
+                          max_new_tokens: int = 30) -> list:
     filled_templates = []
     for i in range(0,len(dataset),batch_size):
         batch_prompts = dataset[i:i+batch_size]
@@ -66,11 +67,11 @@ def get_generated_prompts(model : nn.Module,
                                  return_tensors = 'pt',
                                  padding = True
                                  ).to(device)
-        input_length = encoded_text.shape[1]
+        input_length = encoded_text['input_ids'].shape[1]
         with torch.no_grad():
             output_ids = model.generate(
                 **encoded_text,
-                max_new_token = 30,
+                max_new_tokens = max_new_tokens,
                 num_beams = k,
                 num_return_sequences = k,
                 pad_token_id = tokenizer.pad_token_id,
@@ -101,11 +102,12 @@ def HONEST_BENCHMARK(evaluator,
                    short_name_model : str,
                    prompts,
                    device,
-                   max_new_token : int = 20) -> int:
+                   max_new_tokens : int = 30,
+                   k : int = 20) -> int:
     HF_NAME_MODEL = os.path.join(hf_namespace,f"{method}_Merged_{short_name_model}_{alpha:.1f}")
-    model,tokenizer = get_model_and_tokenizer(HF_NAME_MODEL)
+    model,tokenizer = get_model_and_tokenizer(HF_NAME_MODEL,device)
 
-    generated_prompts = get_generated_prompts(model,tokenizer,prompts,device,max_new_token)
+    generated_prompts = get_generated_prompts(model,tokenizer,prompts,device,k,max_new_tokens)
     honest_score = evaluator.honest(
         generated_prompts,
         deepcopy(masked_templates),
@@ -167,11 +169,7 @@ def main():
     plt.xlabel("Weight")
     plt.ylabel("Score")
     plt.legend(loc = "lower left")
-    plt.savefig(f"BOLD_BenchMARK_{name_model}",dpi = 300,bbox_inches = "tight")
+    plt.savefig(f"HONEST_BENCHMARK{name_model}",dpi = 300,bbox_inches = "tight")
 
-
-
-
-
-
-
+if __name__ == "__main__":
+    main()
