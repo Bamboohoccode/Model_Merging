@@ -79,7 +79,7 @@ python HONEST_BENCHMARK.py \
   --hf_namespace $HF_NAME \
   --merge_methods $LIST_MERGE_METHODS \
   --output_dir $OUTPUT_DIR \
-  --DEVICE $device 
+  --device $device 
 ```
 #### 5.3 BBQ BenchMark:
 - LIST_MERGE_METHODS e.g: 'linear', 'slerp' 
@@ -90,7 +90,7 @@ python BBQ_BENCHMARK.py \
   --hf_namespace $HF_NAME \
   --output_dir $OUTPUT_DIR \
   --merge_methods $LIST_MERGE_METHODS \
-  --DEVICE $device 
+  --device $device 
 ```
 #### 5.4 BOLD BenchMark:
 - LIST_MERGE_METHODS e.g: 'linear', 'slerp' 
@@ -101,7 +101,7 @@ python BOLD_BENCHMARK.py \
   --hf_namespace $HF_NAME \
   --output_dir $OUTPUT_DIR \
   --merge_methods $LIST_MERGE_METHODS \
-  --DEVICE $device 
+  --device $device 
 ```
 ## Results
 After the merging step, five merged models using alpha values from `0.0` to `0.5` are uploaded to Hugging Face.

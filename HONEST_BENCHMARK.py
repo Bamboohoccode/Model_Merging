@@ -149,7 +149,7 @@ def main():
                         type = str,
                         default="cuda")
     args = parser.parse_args()
-    output_dir = args.ouptut_dir
+    output_dir = args.output_dir
     device = args.device
     list_methods = args.merge_methods
     hf_namespace = args.hf_namespace
