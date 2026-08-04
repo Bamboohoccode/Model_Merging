@@ -62,7 +62,7 @@ def BOLD_BENCHMARK(hf_namespace : str,
                    device,
                    regard) -> int:
     HF_NAME_MODEL = os.path.join(hf_namespace,f"{method}_Merged_{short_name_model}_{alpha:.1f}")
-    model,tokenizer = get_model_and_tokenizer(HF_NAME_MODEL)
+    model,tokenizer = get_model_and_tokenizer(HF_NAME_MODEL,device)
     generated_prompts = get_generated_prompts(model,tokenizer,dataset,device,10)
     results = regard.compute(data = generated_prompts)
     count = 0
