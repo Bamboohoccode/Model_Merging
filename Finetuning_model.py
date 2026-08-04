@@ -194,7 +194,7 @@ def main() -> None:
     else:
         raise ValueError("The learning_rate_scheduler must be linear or cosine !")    
     # Train
-    train(model,dataloader,device,optimizer,lr_scheduler,BIAS_DIR,epochs)
+    train(model,dataloader,optimizer,lr_scheduler,BIAS_DIR,epochs)
     del model,tokenizer
     gc.collect()
 
