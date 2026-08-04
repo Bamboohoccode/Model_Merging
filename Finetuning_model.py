@@ -119,7 +119,7 @@ def main() -> None:
     parser.add_argument("--HF_TOKEN",default= None)
     parser.add_argument("--hf-namespace", default=DEFAULT_HF_NAMESPACE)
     parser.add_argument("--DEVICE",default='cpu')
-    parser.add_argument("--batch_size",default= BATCH_SIZE)
+    parser.add_argument("--batch_size",type = int,default= BATCH_SIZE)
     args = parser.parse_args()
     epochs = args.epochs
     batch_size = args.batch_size    
