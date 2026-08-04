@@ -41,31 +41,54 @@ def save_yaml(yaml_config : dict,yaml_path : Path | str) -> None:
         yaml.safe_dump(
             yaml_config,
             file)
-def update_config(config : dict,
-                  method : str,
-                  debias_model_dir : str,
-                  base_model_dir : str,
-                  alpha : float = 0.0) -> dict:
-    if(method in {'linear','nuslerp'}):
-        config['models'][0]['parameters']['weight'] = 1.0 - alpha
-        config['models'][1]['parameters']['weight'] = alpha
-        config['models'][0]['model'] = base_model_dir
-        config['models'][1]['model'] = debias_model_dir
-    elif method in {"slerp", "nearswap"}:
+def update_config(
+    config: dict,
+    method: str,
+    debias_model_dir: str,
+    base_model_dir: str,
+    alpha: float = 0.0,
+) -> dict:
+    if not 0.0 <= alpha <= 1.0:
+        raise ValueError("alpha phải nằm trong [0, 1].")
+
+    if method in {"linear", "nuslerp"}:
+        config["models"][0]["model"] = base_model_dir
+        config["models"][0]["parameters"]["weight"] = 1.0 - alpha
+
+        config["models"][1]["model"] = debias_model_dir
+        config["models"][1]["parameters"]["weight"] = alpha
+
+    elif method == "slerp":
+        # SLERP có 2 model trong models.
+        config["models"][0]["model"] = base_model_dir
+        config["models"][1]["model"] = debias_model_dir
+
+        config["base_model"] = base_model_dir
         config["parameters"]["t"] = alpha
-        config['models'][0] = base_model_dir
-        config['models'][1] = debias_model_dir
-        config['base_model'] = base_model_dir
+
+    elif method == "nearswap":
+        # NearSwap chỉ chứa donor/inverse model trong models.
+        # Base model được khai báo riêng.
+        config["models"][0]["model"] = debias_model_dir
+
+        config["base_model"] = base_model_dir
+        config["parameters"]["t"] = alpha
 
     elif method in {"ties", "della"}:
-        # Với một inverse model, dùng lambda để alpha không bị
-        # normalize: true triệt tiêu.
+        # TIES và DELLA chỉ chứa inverse model trong models.
+        config["models"][0]["model"] = debias_model_dir
+
+        config["base_model"] = base_model_dir
         config["parameters"]["lambda"] = alpha
-        config['models'][0] = debias_model_dir
-        config['base_model'] = base_model_dir
-    elif method == 'karcher':
-        config['models'][0] = base_model_dir
-        config['models'][1] = debias_model_dir
+
+    elif method == "karcher":
+        # Karcher của MergeKit hiện tại dùng trọng số bằng nhau.
+        config["models"][0]["model"] = base_model_dir
+        config["models"][1]["model"] = debias_model_dir
+
+    else:
+        raise ValueError(f"Không hỗ trợ merge method: {method}")
+
     return config
         
 
