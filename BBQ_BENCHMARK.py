@@ -158,6 +158,7 @@ def main():
     for method in list_methods:
         list_scores_method = []
         for alpha in ALPHAS:
+            print(f"========{method}================{alpha}================")
             if np.isclose(alpha,0.0):
                 score = base_score
             elif method == "karcher":

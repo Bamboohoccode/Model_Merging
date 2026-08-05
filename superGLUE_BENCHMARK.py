@@ -142,6 +142,7 @@ def main():
         method_scores = []
         output_path = work_dir / "output" / method
         for alpha in ALPHAS:
+            print(f"========{method}================{alpha}================")
             if np.isclose(alpha, 0.0):
                 current_scores = pretrained_scores
             elif method == 'karcher':
