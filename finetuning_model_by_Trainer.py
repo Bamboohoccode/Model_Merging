@@ -31,6 +31,7 @@ from __future__ import annotations
 import argparse
 import gc
 import json
+import math
 import os
 from pathlib import Path
 
@@ -45,6 +46,7 @@ from transformers import (
     TrainingArguments,
     set_seed,
 )
+from transformers.integrations.deepspeed import unset_hf_deepspeed_config
 
 
 # Hyperparameters from the supplied script.
@@ -60,7 +62,7 @@ DEFAULT_HF_NAMESPACE = "trinhkhng"
 DEFAULT_NAME_MODEL = "ComCom/gpt2-small"
 DEFAULT_WORK_DIR = "/kaggle/working"
 
-TRAIN_DTYPE = torch.float32
+TRAIN_DTYPE = torch.float16
 SAVE_DTYPE = torch.float16
 STEREOTYPE_LABEL = 1
 
@@ -238,7 +240,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--name_model", default=DEFAULT_NAME_MODEL)
     parser.add_argument("--work_dir", default=DEFAULT_WORK_DIR)
     parser.add_argument("--epochs", type=int, default=EPOCHS)
-    parser.add_argument("--batch_size", type=int, default=BATCH_SIZE)
     parser.add_argument(
         "--gradient_accumulation_steps",
         type=int,
@@ -327,32 +328,74 @@ def main() -> None:
         f"eval={len(dataset['test'])}"
     )
 
-    model = AutoModelForCausalLM.from_pretrained(
-        args.name_model,
-        dtype=TRAIN_DTYPE,
-        low_cpu_mem_usage=True,
-    )
-    model.config.pad_token_id = tokenizer.pad_token_id
-    model.config.use_cache = not args.gradient_checkpointing
-
     use_fp16 = bool(args.fp16 and torch.cuda.is_available())
     if args.fp16 and not torch.cuda.is_available():
         print("Không có CUDA; tự động tắt FP16.")
 
+    world_size = max(1, int(os.environ.get("WORLD_SIZE", "1")))
+    samples_per_process = math.ceil(len(dataset["train"]) / world_size)
+    updates_per_epoch = max(
+        1,
+        math.ceil(
+            samples_per_process / args.gradient_accumulation_steps
+        ),
+    )
+    warmup_steps = int(
+        args.warmup_ratio * updates_per_epoch * args.epochs
+    )
+
+    deepspeed_config = {
+        "fp16": {"enabled": "auto"},
+        "optimizer": {
+            "type": "AdamW",
+            "params": {
+                "lr": "auto",
+                "betas": "auto",
+                "eps": "auto",
+                "weight_decay": "auto",
+            },
+        },
+        "zero_optimization": {
+            "stage": 3,
+            "offload_optimizer": {
+                "device": "cpu",
+                "pin_memory": True,
+            },
+            "offload_param": {
+                "device": "cpu",
+                "pin_memory": True,
+            },
+            "overlap_comm": True,
+            "contiguous_gradients": True,
+            "reduce_bucket_size": 50_000_000,
+            "stage3_prefetch_bucket_size": 50_000_000,
+            "stage3_param_persistence_threshold": 100_000,
+            "stage3_max_live_parameters": 100_000_000,
+            "stage3_max_reuse_distance": 100_000_000,
+            "stage3_gather_16bit_weights_on_model_save": True,
+        },
+        "gradient_clipping": "auto",
+        "train_micro_batch_size_per_gpu": "auto",
+        "gradient_accumulation_steps": "auto",
+        "train_batch_size": "auto",
+    }
+
     training_args = TrainingArguments(
         output_dir=str(checkpoint_dir),
         num_train_epochs=args.epochs,
-        per_device_train_batch_size=args.batch_size,
-        per_device_eval_batch_size=args.batch_size,
+        per_device_train_batch_size=1,
+        per_device_eval_batch_size=1,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         learning_rate=args.learning_rate,
         weight_decay=args.weight_decay,
-        warmup_ratio=args.warmup_ratio,
+        warmup_steps=warmup_steps,
         lr_scheduler_type=args.learning_rate_scheduler,
-        optim=args.optim,
         max_grad_norm=1.0,
         fp16=use_fp16,
-        gradient_checkpointing=args.gradient_checkpointing,
+        bf16=False,
+        gradient_checkpointing=True,
+        gradient_checkpointing_kwargs={"use_reentrant": False},
+        deepspeed=deepspeed_config,
         eval_strategy="epoch",
         save_strategy="epoch",
         logging_strategy="steps",
@@ -364,11 +407,17 @@ def main() -> None:
         prediction_loss_only=True,
         report_to="none",
         dataloader_num_workers=args.dataloader_num_workers,
-        dataloader_pin_memory=torch.cuda.is_available(),
+        dataloader_pin_memory=False,
         seed=args.seed,
         data_seed=args.seed,
-        ddp_find_unused_parameters=False,
     )
+
+    model = AutoModelForCausalLM.from_pretrained(
+        args.name_model,
+        dtype=TRAIN_DTYPE if use_fp16 else torch.float32,
+    )
+    model.config.pad_token_id = tokenizer.pad_token_id
+    model.config.use_cache = False
 
     data_collator = DataCollatorForLanguageModeling(
         tokenizer=tokenizer,
@@ -404,19 +453,17 @@ def main() -> None:
             "base_model": args.name_model,
             "train_examples": len(dataset["train"]),
             "eval_examples": len(dataset["test"]),
-            "effective_batch_size_per_process": (
-                args.batch_size * args.gradient_accumulation_steps
-            ),
+            "effective_batch_size_per_process": args.gradient_accumulation_steps,
             "hyperparameters": {
                 "epochs": args.epochs,
-                "per_device_batch_size": args.batch_size,
+                "per_device_batch_size": 1,
                 "gradient_accumulation_steps": args.gradient_accumulation_steps,
                 "max_length": args.max_length,
                 "learning_rate": args.learning_rate,
                 "weight_decay": args.weight_decay,
                 "warmup_ratio": args.warmup_ratio,
                 "lr_scheduler_type": args.learning_rate_scheduler,
-                "optimizer": args.optim,
+                "optimizer": "DeepSpeedCPUAdam",
                 "fp16": use_fp16,
             },
             "train_metrics": train_result.metrics,
@@ -430,7 +477,8 @@ def main() -> None:
     trainer.accelerator.wait_for_everyone()
     is_main_process = trainer.is_world_process_zero()
 
-    del trainer, model, dataset, data_collator
+    del trainer, training_args, model, dataset, data_collator
+    unset_hf_deepspeed_config()
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
