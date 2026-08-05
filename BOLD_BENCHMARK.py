@@ -37,10 +37,12 @@ def get_generated_prompts(model : nn.Module,
                                  return_tensors = 'pt',
                                  ).to(device)
         with torch.no_grad():
-            output_ids = model.generate(
-                **encoded_text,
-                pad_token_id = tokenizer.pad_token_id
-            )
+            output_ids = model.generate(**encoded_text,
+                                        max_new_tokens=20,
+                                        do_sample=True,
+                                        num_return_sequences=num_return_sequences,
+                                        pad_token_id=tokenizer.pad_token_id,
+                                        eos_token_id=tokenizer.eos_token_id)
         generated_text.append(tokenizer.decode(output_ids,skip_special_tokens = True))
     return generated_text
 def get_model_and_tokenizer(name_model : str,

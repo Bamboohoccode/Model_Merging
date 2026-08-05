@@ -137,7 +137,7 @@ def main() -> None:
         debias_model_name =  f"{args.hf_namespace}/debias_{model_name}"
     else:
         debias_model_name = args.debias_model_name
-    debias_model_name = os.path.join(args.hf_namespace,debias_model_name)
+        debias_model_name = os.path.join(args.hf_namespace,debias_model_name)
 
     if(args.debias_model_dir is None):
         debias_model_dir = os.path.join(work_dir,f"{model_name}_debias")

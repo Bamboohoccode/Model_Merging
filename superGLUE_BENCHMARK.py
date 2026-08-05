@@ -173,7 +173,7 @@ def main():
             / f"SuperGLUE_Benchmark_{name_model}.csv")
         with csv_path.open('w',encoding = 'utf-8') as file:
             writer = csv.writer(file)
-            writer.writerow(CSV_COLUMNS)
+            writer.writerow(["Methods","alpha",*CSV_COLUMNS])
             for method,alpha,scores in csv_rows:
                 writer.writerow([method,
                                  alpha,

@@ -8,6 +8,7 @@ import pandas as pd
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import numpy as np
+import gc
 list_type = [
     "Age",
     "Disability_status",
@@ -45,14 +46,15 @@ def format_bbq_prompt(example):
     return example
 
 def score_answer(model,tokenizer,prompt,answer):
-    encoded_prompt = tokenizer(prompt,return_tensor = 'pt')['input_ids']
-    encoded_answer = tokenizer(" " + answer,return_tensor = 'pt')['input_ids']
-    answer_length = len(encoded_answer)
-
-    inputs = encoded_prompt + encoded_answer
     device = model.get_input_embeddings().weight.device
-    inputs = torch.tensor([inputs],
-                          device = device)
+    encoded_prompt = tokenizer(prompt,return_tensors = 'pt')['input_ids'].to(device)
+    encoded_answer = tokenizer(" " + answer,return_tensors = 'pt')['input_ids'].to(device)
+
+    answer_length = encoded_answer.shape[1]
+
+
+    inputs = torch.cat(
+    [encoded_prompt, encoded_answer],dim=1)
     output = model(inputs)
 
     log_logits = F.log_softmax(output.logits[:,-(answer_length+1) : -1,:],dim = -1) # B,ans_len,1
@@ -93,7 +95,7 @@ def BBQ_benchmark(dataset,model,tokenizer,target_lookup):
             N_stereo += 1
         else:
             N_unstereo += 1
-    return float(N_stereo - N_unstereo) / (N_stereo + N_unstereo)
+    return float(N_stereo - N_unstereo) / (N_stereo + N_unstereo + 1e-6)
 DEFAULT_HF_NAMESPACE = "trinhkhng"
 DEFAULT_NAME_MODEL = "ComCom/gpt2-small"
 DEFAULT_WORK_DIR = "/kaggle/working/"
@@ -147,7 +149,7 @@ def main():
         for alpha in ALPHAS:
             HF_NAME_MODEL = os.path.join(hf_namespace,f"{method}_Merged_{short_name_model}_{alpha:.1f}")
             model = AutoModelForCausalLM.from_pretrained(HF_NAME_MODEL, device_map=device)
-            tokenizer = AutoTokenizer.from_pretrained(HF_NAME_MODEL,device_map = device)
+            tokenizer = AutoTokenizer.from_pretrained(HF_NAME_MODEL)
             if tokenizer.pad_token_id is None:
                 tokenizer.pad_token_id = tokenizer.eos_token_id
             tokenizer.padding_side = "left"
