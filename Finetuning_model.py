@@ -101,7 +101,7 @@ def train(
     epochs,
 ):
     model.train()
-    model.config.use_cache = False
+    model.config.use_cache = False # Tat KV Cache
 
     accumulation_steps = GRADIENT_ACCUMULATION_STEPS
     input_device = model.get_input_embeddings().weight.device
@@ -119,9 +119,7 @@ def train(
         init_scale=2**10,
         growth_interval=2000,
     )
-
     optimizer.zero_grad(set_to_none=True)
-
     for epoch in range(epochs):
         total_loss = 0.0
         valid_loss_count = 0
@@ -208,7 +206,6 @@ def train(
                 skip_current_group = True
                 optimizer.zero_grad(set_to_none=True)
                 continue
-
             # Chia theo kích thước thật của nhóm cuối
             scaled_loss = raw_loss / group_size
             scaler.scale(scaled_loss).backward()
@@ -363,7 +360,7 @@ def main() -> None:
     torch.cuda.empty_cache()
 
     # Create inverse model
-    base_model = AutoModelForCausalLM.from_pretrained(BASE_MODEL, device_map= device, dtype=dtype_model)
+    base_model = AutoModelForCausalLM.from_pretrained(BASE_MODEL, device_map= device, dtype=TRAIN_DTYPE)
     base_state = base_model.state_dict()
 
     bias_state = torch.load(BIAS_DIR,map_location='cpu',weights_only = True)
@@ -376,7 +373,7 @@ def main() -> None:
         )
     del base_model
     gc.collect()
-    Inverse_model = AutoModelForCausalLM.from_pretrained(BASE_MODEL,dtype = torch.float32)
+    Inverse_model = AutoModelForCausalLM.from_pretrained(BASE_MODEL,device_map = device,dtype = TRAIN_DTYPE)
     tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
     Inverse_model.load_state_dict(inverse_state,strict = True)
 
