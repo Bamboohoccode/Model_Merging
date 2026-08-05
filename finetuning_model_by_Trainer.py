@@ -356,30 +356,49 @@ def main() -> None:
             },
         },
         "zero_optimization": {
-            "stage": 3,
-            "offload_optimizer": {
-                "device": "cpu",
-                "pin_memory": True,
-            },
-            "offload_param": {
-                "device": "cpu",
-                "pin_memory": True,
-            },
-            "overlap_comm": True,
-            "contiguous_gradients": True,
-            "reduce_bucket_size": 50_000_000,
-            "stage3_prefetch_bucket_size": 50_000_000,
-            "stage3_param_persistence_threshold": 100_000,
-            "stage3_max_live_parameters": 100_000_000,
-            "stage3_max_reuse_distance": 100_000_000,
-            "stage3_gather_16bit_weights_on_model_save": True,
-        },
+    "stage": 3,
+
+    "offload_optimizer": {
+        "device": "nvme",
+        "nvme_path": nvme_path,
+        "pin_memory": False,
+        "buffer_count": 4,
+        "fast_init": False,
+    },
+
+    "offload_param": {
+        "device": "nvme",
+        "nvme_path": nvme_path,
+        "pin_memory": False,
+        "buffer_count": 5,
+        "buffer_size": 100_000_000,
+        "max_in_cpu": 100_000_000,
+    },
+
+    "overlap_comm": True,
+    "contiguous_gradients": True,
+    "sub_group_size": 100_000_000,
+    "reduce_bucket_size": 50_000_000,
+    "stage3_prefetch_bucket_size": 50_000_000,
+    "stage3_param_persistence_threshold": 100_000,
+    "stage3_max_live_parameters": 100_000_000,
+    "stage3_max_reuse_distance": 100_000_000,
+    "stage3_gather_16bit_weights_on_model_save": True,
+},
+    "aio": {
+        "block_size": 262144,
+        "queue_depth": 32,
+        "thread_count": 1,
+        "single_submit": False,
+        "overlap_events": True,
+    },
         "gradient_clipping": "auto",
         "train_micro_batch_size_per_gpu": "auto",
         "gradient_accumulation_steps": "auto",
         "train_batch_size": "auto",
     }
-
+    nvme_path = str(work_dir / "deepspeed_nvme")
+    Path(nvme_path).mkdir(parents=True, exist_ok=True)
     training_args = TrainingArguments(
         output_dir=str(checkpoint_dir),
         num_train_epochs=args.epochs,
