@@ -343,7 +343,8 @@ def main() -> None:
     warmup_steps = int(
         args.warmup_ratio * updates_per_epoch * args.epochs
     )
-
+    nvme_path = str(work_dir / "deepspeed_nvme")
+    Path(nvme_path).mkdir(parents=True, exist_ok=True)
     deepspeed_config = {
         "fp16": {"enabled": "auto"},
         "optimizer": {
@@ -397,8 +398,6 @@ def main() -> None:
         "gradient_accumulation_steps": "auto",
         "train_batch_size": "auto",
     }
-    nvme_path = str(work_dir / "deepspeed_nvme")
-    Path(nvme_path).mkdir(parents=True, exist_ok=True)
     training_args = TrainingArguments(
         output_dir=str(checkpoint_dir),
         num_train_epochs=args.epochs,
