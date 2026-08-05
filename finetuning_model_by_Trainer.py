@@ -341,7 +341,6 @@ def main() -> None:
 
     training_args = TrainingArguments(
         output_dir=str(checkpoint_dir),
-        overwrite_output_dir=False,
         num_train_epochs=args.epochs,
         per_device_train_batch_size=args.batch_size,
         per_device_eval_batch_size=args.batch_size,
@@ -368,7 +367,6 @@ def main() -> None:
         dataloader_pin_memory=torch.cuda.is_available(),
         seed=args.seed,
         data_seed=args.seed,
-        save_safetensors=True,
         ddp_find_unused_parameters=False,
     )
 
