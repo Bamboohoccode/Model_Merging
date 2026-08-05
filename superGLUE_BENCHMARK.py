@@ -133,13 +133,19 @@ def main():
     #Pretrained Scores
     pretrained_repo_id = args.name_model
     pretrained_scores = evaluate_model(pretrained_repo_id,output_dir,max_length = MAX_LENGTH,num_processes=2)
+    karcher_repo_id =(
+                    f"{args.hf_namespace}/"
+                    f"karcher_Merged_{name_model}_{0.0}")
+    karcher_scores = evaluate_model(karcher_repo_id,output_dir,max_length = MAX_LENGTH,num_processes=2)
     csv_rows = [("pretrained","-",pretrained_scores)]
     for method in method_lists:
         method_scores = []
         output_path = work_dir / "output" / method
         for alpha in ALPHAS:
             if np.isclose(alpha, 0.0):
-                            current_scores = pretrained_scores
+                current_scores = pretrained_scores
+            elif method == 'karcher':
+                 current_scores = karcher_scores
             else:
                 repo_id = (
                     f"{args.hf_namespace}/"

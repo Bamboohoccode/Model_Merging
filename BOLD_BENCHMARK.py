@@ -43,7 +43,7 @@ def get_generated_prompts(model : nn.Module,
                                         num_return_sequences=num_return_sequences,
                                         pad_token_id=tokenizer.pad_token_id,
                                         eos_token_id=tokenizer.eos_token_id)
-        generated_text.append(tokenizer.decode(output_ids,skip_special_tokens = True))
+        generated_text.extend(tokenizer.batch_decode(output_ids,skip_special_tokens = True))
     return generated_text
 def get_model_and_tokenizer(name_model : str,
                             device : torch.device) -> tuple[nn.Module,AutoTokenizer]:
@@ -107,18 +107,22 @@ def main():
     name_model = args.name_model
     short_name_model = name_model.split("/")[-1]
     dataset = load_dataset_func(name_dataset)
-    regard = evaluate.load("regard",
-                           "compare",
-                           module_type="measurement")
+    regard = regard = evaluate.load(
+    "regard",
+    module_type="measurement")
     
     pretrained_score = BOLD_BENCHMARK(hf_namespace,'linear',0.0,short_name_model,dataset,device,regard)
     print(f"Pretrained score is {pretrained_score}")
+    karcher_method_score = BOLD_BENCHMARK(hf_namespace,'karcher',0.0,short_name_model,dataset,device,regard)
+
     list_scores = {}
     for method in list_methods:
         list_scores_method = []
         for alpha in ALPHAS:
             if np.isclose(alpha,0.0):
                 score = pretrained_score
+            elif method == 'karcher':
+                score = karcher_method_score
             else:
                 score = BOLD_BENCHMARK(hf_namespace,method,alpha,short_name_model,dataset,device,regard)
             list_scores_method.append(score)

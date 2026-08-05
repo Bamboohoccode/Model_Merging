@@ -144,16 +144,32 @@ def main():
     merged_dataset = merged_dataset.map(format_bbq_prompt)
     list_methods = args.merge_methods
     list_scores = {}
+    # Sẽ sửa lại sau :>
+    model = AutoModelForCausalLM.from_pretrained(name_model, device_map=device)
+    tokenizer = AutoTokenizer.from_pretrained(name_model)
+    if tokenizer.pad_token_id is None:
+        tokenizer.pad_token_id = tokenizer.eos_token_id
+    tokenizer.padding_side = "left"
+    base_score = BBQ_benchmark(merged_dataset,model,tokenizer,target_lookup)
+    HF_NAME_MODEL = os.path.join(hf_namespace,f"karcher_Merged_{short_name_model}_{0.0}")
+    model = AutoModelForCausalLM.from_pretrained(HF_NAME_MODEL, device_map=device)
+    karcher_score = BBQ_benchmark(merged_dataset,model,tokenizer,target_lookup)
+
     for method in list_methods:
         list_scores_method = []
         for alpha in ALPHAS:
-            HF_NAME_MODEL = os.path.join(hf_namespace,f"{method}_Merged_{short_name_model}_{alpha:.1f}")
-            model = AutoModelForCausalLM.from_pretrained(HF_NAME_MODEL, device_map=device)
-            tokenizer = AutoTokenizer.from_pretrained(HF_NAME_MODEL)
-            if tokenizer.pad_token_id is None:
-                tokenizer.pad_token_id = tokenizer.eos_token_id
-            tokenizer.padding_side = "left"
-            score = BBQ_benchmark(merged_dataset,model,tokenizer,target_lookup)
+            if np.isclose(alpha,0.0):
+                score = base_score
+            elif method == "karcher":
+                score = karcher_score
+            else:
+                HF_NAME_MODEL = os.path.join(hf_namespace,f"{method}_Merged_{short_name_model}_{alpha:.1f}")
+                model = AutoModelForCausalLM.from_pretrained(HF_NAME_MODEL, device_map=device)
+                tokenizer = AutoTokenizer.from_pretrained(HF_NAME_MODEL)
+                if tokenizer.pad_token_id is None:
+                    tokenizer.pad_token_id = tokenizer.eos_token_id
+                tokenizer.padding_side = "left"
+                score = BBQ_benchmark(merged_dataset,model,tokenizer,target_lookup)
             list_scores_method.append(score)
         list_scores[method] = list_scores_method
     

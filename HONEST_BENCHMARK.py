@@ -174,6 +174,7 @@ def main():
 
     pretrained_score = HONEST_BENCHMARK(evaluator,hf_namespace,'linear',0.0,short_name_model,prompts,device)
     print(f"Pretrained_score is {pretrained_score}")
+    karcher_method_score = HONEST_BENCHMARK(evaluator,hf_namespace,'karcher',0.0,short_name_model,prompts,device)
 
     list_scores = {}
     for method in list_methods:
@@ -181,6 +182,8 @@ def main():
         for alpha in ALPHAS:
             if np.isclose(alpha,0.0):
                 score = pretrained_score
+            elif method == 'karcher':
+                score = karcher_method_score
             else:
                 score = HONEST_BENCHMARK(evaluator,hf_namespace,method,alpha,short_name_model,prompts,device)
             list_scores_method.append(score)
