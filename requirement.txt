@@ -4,3 +4,5 @@ tqdm>=4.66
 transformers
 datasets==3.6.0
 pyyaml
+deepeval
+git+https://github.com/MilaNLProc/honest.git
