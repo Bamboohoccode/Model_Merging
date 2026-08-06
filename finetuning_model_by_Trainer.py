@@ -347,9 +347,6 @@ def main() -> None:
     per_device_eval_batch_size=args.batch_size,
 
     gradient_accumulation_steps=args.gradient_accumulation_steps,
-
-    # Quan trọng với FSDP + gradient accumulation.
-    # Tránh no_sync giữ full gradient -> OOM.
     accelerator_config={
         "gradient_accumulation_kwargs": {
             "sync_each_batch": True,
@@ -358,32 +355,38 @@ def main() -> None:
 
     learning_rate=args.learning_rate,
     weight_decay=args.weight_decay,
-    warmup_ratio=args.warmup_ratio,
-    lr_scheduler_type=args.learning_rate_scheduler,
-    optim=args.optim,
-    max_grad_norm=1.0,
 
+    # Transformers 5.0: float < 1 vẫn được hiểu là ratio.
+    # args.warmup_ratio = 0.1 -> warmup 10%
+    warmup_steps=args.warmup_ratio,
+
+    lr_scheduler_type=args.learning_rate_scheduler,
+
+    # QUAN TRỌNG: giảm mạnh optimizer states trên GPU
+    optim="paged_adamw_8bit",
+
+    max_grad_norm=1.0,
     fp16=use_fp16,
 
-    # Dùng activation checkpointing của FSDP.
     gradient_checkpointing=False,
 
     fsdp=True,
     fsdp_config={
         "version": 1,
-
-        # KHÔNG cpu_offload=True
         "activation_checkpointing": True,
 
         "auto_wrap_policy": "TRANSFORMER_BASED_WRAP",
         "transformer_layer_cls_to_wrap": ["LlamaDecoderLayer"],
+
+        # Giảm peak memory lúc backward
+        "backward_prefetch": "BACKWARD_POST",
+        "limit_all_gathers": True,
 
         "state_dict_type": "FULL_STATE_DICT",
     },
 
     eval_strategy="epoch",
     save_strategy="epoch",
-
     logging_strategy="steps",
     logging_steps=args.logging_steps,
     save_total_limit=args.save_total_limit,
@@ -396,12 +399,11 @@ def main() -> None:
     report_to="none",
 
     dataloader_num_workers=args.dataloader_num_workers,
-    dataloader_pin_memory=torch.cuda.is_available(),
+    dataloader_pin_memory=True,
 
     seed=args.seed,
     data_seed=args.seed,
-
-    ddp_find_unused_parameters=False)
+)
 
     data_collator = DataCollatorForLanguageModeling(
         tokenizer=tokenizer,
