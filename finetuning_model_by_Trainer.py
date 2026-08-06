@@ -357,7 +357,7 @@ def main() -> None:
         gradient_checkpointing=False,
         fsdp=True,
         fsdp_config={
-            "version": 2,
+            "version": 1,  # đổi 2 -> 1
             "activation_checkpointing": args.gradient_checkpointing,
             "auto_wrap_policy": "TRANSFORMER_BASED_WRAP",
             "transformer_layer_cls_to_wrap": ["LlamaDecoderLayer"],
