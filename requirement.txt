@@ -1,17 +1,16 @@
 torch>=2.1
 numpy>=1.24
-tqdm>=4.66
-transformers ==5.0.0
+tqdm==4.67.1
+transformers==5.0.0
 datasets==3.6.0
+accelerate==1.6.0
+pydantic==2.10.6
 pyyaml
-deepeval
+deepeval==3.4.8
 git+https://github.com/MilaNLProc/honest.git
-bitsandbytes
-accelerate==1.14.0
 bitsandbytes
 evaluate
 matplotlib
 pandas
 huggingface_hub
-pydantic==2.10.6
 deepspeed==0.19.3
