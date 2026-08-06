@@ -357,8 +357,9 @@ def main() -> None:
         gradient_checkpointing=False,
         fsdp=True,
         fsdp_config={
-            "version": 1,  # đổi 2 -> 1
-            "activation_checkpointing": args.gradient_checkpointing,
+            "version": 1,
+            "cpu_offload": True,
+            "activation_checkpointing": True,
             "auto_wrap_policy": "TRANSFORMER_BASED_WRAP",
             "transformer_layer_cls_to_wrap": ["LlamaDecoderLayer"],
             "state_dict_type": "FULL_STATE_DICT",
@@ -394,7 +395,8 @@ def main() -> None:
         processing_class=tokenizer,
         data_collator=data_collator,
     )
-
+    print("FSDP enabled:", trainer.is_fsdp_enabled)
+    print("Distributed:", trainer.accelerator.distributed_type)
     train_result = trainer.train(
         resume_from_checkpoint=args.resume_from_checkpoint
     )
