@@ -17,7 +17,7 @@ Example on Kaggle (one process):
         --name_model ComCom/gpt2-small \
         --work_dir /kaggle/working
 
-Two GPUs with DistributedDataParallel:
+Two GPUs with FSDP (shard model/gradient/optimizer states):
     torchrun --nproc_per_node=2 finetune_stereoset_trainer.py \
         --name_model ComCom/gpt2-small \
         --work_dir /kaggle/working
@@ -261,8 +261,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--preprocessing_num_workers", type=int, default=None)
     parser.add_argument(
         "--optim",
-        default="paged_adamw_8bit",
-        help="Trainer optimizer; use adamw_torch if bitsandbytes is unavailable.",
+        default="adamw_torch",
+        help="Trainer optimizer; adamw_torch works cleanly with FSDP.",
     )
     parser.add_argument(
         "--fp16",
@@ -352,7 +352,17 @@ def main() -> None:
         optim=args.optim,
         max_grad_norm=1.0,
         fp16=use_fp16,
-        gradient_checkpointing=args.gradient_checkpointing,
+        # FSDP activation checkpointing is preferred over Trainer's
+        # gradient_checkpointing because it avoids a redundant all-gather.
+        gradient_checkpointing=False,
+        fsdp=True,
+        fsdp_config={
+            "version": 2,
+            "activation_checkpointing": args.gradient_checkpointing,
+            "auto_wrap_policy": "TRANSFORMER_BASED_WRAP",
+            "transformer_layer_cls_to_wrap": ["LlamaDecoderLayer"],
+            "state_dict_type": "FULL_STATE_DICT",
+        },
         eval_strategy="epoch",
         save_strategy="epoch",
         logging_strategy="steps",
