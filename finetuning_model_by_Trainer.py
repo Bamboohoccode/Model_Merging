@@ -384,7 +384,7 @@ def main() -> None:
 
         "state_dict_type": "FULL_STATE_DICT",
     },
-
+    save_only_model=True,
     eval_strategy="epoch",
     save_strategy="epoch",
     logging_strategy="steps",
