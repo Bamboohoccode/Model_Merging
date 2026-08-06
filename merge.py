@@ -88,6 +88,10 @@ def update_config(
 
     else:
         raise ValueError(f"Không hỗ trợ merge method: {method}")
+    config.pop("tokenizer_source", None)
+    config["tokenizer"] = {
+        "source": base_model_dir
+    }
 
     return config
         
