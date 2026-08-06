@@ -340,46 +340,68 @@ def main() -> None:
         print("Không có CUDA; tự động tắt FP16.")
 
     training_args = TrainingArguments(
-        output_dir=str(checkpoint_dir),
-        num_train_epochs=args.epochs,
-        per_device_train_batch_size=args.batch_size,
-        per_device_eval_batch_size=args.batch_size,
-        gradient_accumulation_steps=args.gradient_accumulation_steps,
-        learning_rate=args.learning_rate,
-        weight_decay=args.weight_decay,
-        warmup_ratio=args.warmup_ratio,
-        lr_scheduler_type=args.learning_rate_scheduler,
-        optim=args.optim,
-        max_grad_norm=1.0,
-        fp16=use_fp16,
-        # FSDP activation checkpointing is preferred over Trainer's
-        # gradient_checkpointing because it avoids a redundant all-gather.
-        gradient_checkpointing=False,
-        fsdp=True,
-        fsdp_config={
-            "version": 1,
-            "cpu_offload": True,
-            "activation_checkpointing": True,
-            "auto_wrap_policy": "TRANSFORMER_BASED_WRAP",
-            "transformer_layer_cls_to_wrap": ["LlamaDecoderLayer"],
-            "state_dict_type": "FULL_STATE_DICT",
-        },
-        eval_strategy="epoch",
-        save_strategy="epoch",
-        logging_strategy="steps",
-        logging_steps=args.logging_steps,
-        save_total_limit=args.save_total_limit,
-        load_best_model_at_end=True,
-        metric_for_best_model="eval_loss",
-        greater_is_better=False,
-        prediction_loss_only=True,
-        report_to="none",
-        dataloader_num_workers=args.dataloader_num_workers,
-        dataloader_pin_memory=torch.cuda.is_available(),
-        seed=args.seed,
-        data_seed=args.seed,
-        ddp_find_unused_parameters=False,
-    )
+    output_dir=str(checkpoint_dir),
+    num_train_epochs=args.epochs,
+
+    per_device_train_batch_size=args.batch_size,
+    per_device_eval_batch_size=args.batch_size,
+
+    gradient_accumulation_steps=args.gradient_accumulation_steps,
+
+    # Quan trọng với FSDP + gradient accumulation.
+    # Tránh no_sync giữ full gradient -> OOM.
+    accelerator_config={
+        "gradient_accumulation_kwargs": {
+            "sync_each_batch": True,
+        }
+    },
+
+    learning_rate=args.learning_rate,
+    weight_decay=args.weight_decay,
+    warmup_ratio=args.warmup_ratio,
+    lr_scheduler_type=args.learning_rate_scheduler,
+    optim=args.optim,
+    max_grad_norm=1.0,
+
+    fp16=use_fp16,
+
+    # Dùng activation checkpointing của FSDP.
+    gradient_checkpointing=False,
+
+    fsdp=True,
+    fsdp_config={
+        "version": 1,
+
+        # KHÔNG cpu_offload=True
+        "activation_checkpointing": True,
+
+        "auto_wrap_policy": "TRANSFORMER_BASED_WRAP",
+        "transformer_layer_cls_to_wrap": ["LlamaDecoderLayer"],
+
+        "state_dict_type": "FULL_STATE_DICT",
+    },
+
+    eval_strategy="epoch",
+    save_strategy="epoch",
+
+    logging_strategy="steps",
+    logging_steps=args.logging_steps,
+    save_total_limit=args.save_total_limit,
+
+    load_best_model_at_end=True,
+    metric_for_best_model="eval_loss",
+    greater_is_better=False,
+    prediction_loss_only=True,
+
+    report_to="none",
+
+    dataloader_num_workers=args.dataloader_num_workers,
+    dataloader_pin_memory=torch.cuda.is_available(),
+
+    seed=args.seed,
+    data_seed=args.seed,
+
+    ddp_find_unused_parameters=False)
 
     data_collator = DataCollatorForLanguageModeling(
         tokenizer=tokenizer,
