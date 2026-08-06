@@ -189,9 +189,8 @@ def main() -> None:
         for alpha in args.alphas:
             output_dir = work_dir / f"Merged_{model_name}_{alpha:.1f}"
             if output_dir.exists():
-                raise FileExistsError(
-                    f"Output already exists: {output_dir}. Remove or rename it "
-                    "before rerunning this alpha.")
+                print("Đã xuất hiẹn file này rồi, Đang thay thế nó !")
+                shutil.rmtree(output_dir)
             config = load_yaml(config_path)
             config = update_config(config,method,debias_model_dir,base_model_dir,alpha)
             save_yaml(config,config_path)
