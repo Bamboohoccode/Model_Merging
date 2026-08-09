@@ -28,7 +28,7 @@ def get_dataset(args):
     datasets_list.append(ds)
     data = concatenate_datasets(datasets_list)
     if args.truncate:
-        num_data = int(len(data) * 0.05)
+        num_data = int(len(data) * 0.5)
         data = data.shuffle(seed = args.seed).select(range(num_data))
     return data
 
