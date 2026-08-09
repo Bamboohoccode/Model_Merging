@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch.nn as nn
 from datasets import load_dataset
+import random
 DEFAULT_HF_NAMESPACE = "trinhkhng"
 DEFAULT_NAME_MODEL = "ComCom/gpt2-small"
 DEFAULT_WORK_DIR = "/kaggle/working/"
@@ -20,10 +21,13 @@ METHOD_TO_COLOR = {"linear" : "blue","karcher" : "orange",
                    "slerp" : "green","nuslerp" : "red","ties" : "purple","della" : "brown","nearswap" : "pink"}
 
 
-def load_dataset_func(name_dataset : str) -> list:
+def load_dataset_func(args,name_dataset : str) -> list:
     ds = load_dataset(name_dataset)
     prompts = ds['train']['prompts']
     prompts = [prompt[0] for prompt in prompts]
+    if args.truncate:
+        num_prompts = len(prompts) * 0.05
+        prompts = random.sample(prompts,num_prompts)
     return prompts
 def get_generated_prompts(model : nn.Module,
                           tokenizer : AutoTokenizer,
@@ -98,6 +102,8 @@ def main():
     parser.add_argument("--device",
                         type = str,
                         default="cuda")
+    parser.add_argument("--truncate",
+                        action = "store_true",)
     args = parser.parse_args()
     device = args.device
     output_dir = args.output_dir
@@ -106,8 +112,8 @@ def main():
     name_dataset = "AmazonScience/bold"
     name_model = args.name_model
     short_name_model = name_model.split("/")[-1]
-    dataset = load_dataset_func(name_dataset)
-    regard = regard = evaluate.load(
+    dataset = load_dataset_func(args,name_dataset)
+    regard = evaluate.load(
     "regard",
     module_type="measurement")
     

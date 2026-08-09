@@ -9,5 +9,3 @@ parameters:
   t: 0.3
 
 dtype: float32
-tokenizer:
-  source: base

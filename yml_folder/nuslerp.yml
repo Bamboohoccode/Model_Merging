@@ -1,5 +1,3 @@
-# alpha = 0.3. NuSLERP converts these weights to t = 0.3 / (0.7 + 0.3).
-# No base_model is declared because this is direct SLERP between the two models.
 models:
   - model: ComCom/gpt2-small
     parameters:
@@ -14,5 +12,3 @@ parameters:
   nuslerp_row_wise: false
 
 dtype: float32
-tokenizer:
-  source: ComCom/gpt2-small

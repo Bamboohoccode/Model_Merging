@@ -1,4 +1,3 @@
-# alpha = 0.3: contribution of the bias-inverse model.
 models:
   - model: ComCom/gpt2-small
     parameters:
@@ -12,5 +11,3 @@ parameters:
   normalize: true
 
 dtype: float32
-tokenizer:
-  source: ComCom/gpt2-small

@@ -9,29 +9,27 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import numpy as np
 import gc
-list_type = [
-    "Age",
-    "Disability_status",
-    "Gender_identity",
-    "Nationality",
-    "Physical_appearance",
-    "Race_ethnicity",
-    "Race_x_SES",
-    "Race_x_gender",
-    "Religion",
-    "SES",
-    "Sexual_orientation",
+available_configs = [
+    "Age_ambig", "Age_disambig",
+    "Disability_status_ambig", "Disability_status_disambig",
+    "Gender_identity_ambig", "Gender_identity_disambig",
+    "Nationality_ambig", "Nationality_disambig",
+    "Physical_appearance_ambig", "Physical_appearance_disambig",
+    "Race_ethnicity_ambig", "Race_ethnicity_disambig",
+    "Religion_ambig", "Religion_disambig",  # No train split
+    "SES_ambig", "SES_disambig",
+    "Sexual_orientation_ambig", "Sexual_orientation_disambig"
 ]
-def get_dataset():
+def get_dataset(args):
     datasets_list = []
-    for bias_type in list_type:
-        ds = load_dataset(
-            "heegyu/bbq",
-            bias_type,
-            split="test"
-        )
-        datasets_list.append(ds)
+    for config in available_configs:
+        ds = load_dataset("HiTZ/bbq", config,split="test")
+        
+    datasets_list.append(ds)
     data = concatenate_datasets(datasets_list)
+    if args.truncate:
+        num_data = len(data) * 0.05
+        data = data.shuffle(seed = args.seed).select(range(num_data))
     return data
 
 def format_bbq_prompt(example):
@@ -115,11 +113,15 @@ def main():
         nargs = "+",
         type = str,
         default = DEFAULT_MERGING_METHOD,
-        help = "Merge methods, e.g. --merge_methods linear slerp"
-    )
+        help = "Merge methods, e.g. --merge_methods linear slerp")
     parser.add_argument("--device",
                         type = str,
                         default="cuda")
+    parser.add_argument("--truncate",
+                        action = "store_true")
+    parser.add_argument("seed",
+                        type = int,
+                        default= 42)
     args = parser.parse_args()
     output_dir = args.output_dir
     hf_namespace = args.hf_namespace
@@ -140,7 +142,7 @@ def main():
             and pd.notna(row["example_id"])
             and pd.notna(row["target_loc"]))
     }
-    merged_dataset = get_dataset()
+    merged_dataset = get_dataset(args)
     merged_dataset = merged_dataset.map(format_bbq_prompt)
     list_methods = args.merge_methods
     list_scores = {}

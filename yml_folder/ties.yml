@@ -1,5 +1,3 @@
-# With one task vector, use lambda (not weight) as alpha.
-# Otherwise normalize: true cancels the donor weight.
 models:
   - model: /kaggle/working/inverse_model
     parameters:
@@ -14,5 +12,3 @@ parameters:
   int8_mask: true
 
 dtype: float32
-tokenizer:
-  source: base
