@@ -24,11 +24,11 @@ def get_dataset(args):
     datasets_list = []
     for config in available_configs:
         ds = load_dataset("HiTZ/bbq", config,split="test")
-        
+
     datasets_list.append(ds)
     data = concatenate_datasets(datasets_list)
     if args.truncate:
-        num_data = len(data) * 0.05
+        num_data = int(len(data) * 0.05)
         data = data.shuffle(seed = args.seed).select(range(num_data))
     return data
 
