@@ -144,6 +144,7 @@ def main():
     plt.xlabel("Weight")
     plt.ylabel("Score")
     plt.legend(loc = "lower left")
+    os.mkdir(output_dir)
     output_img_path = f"{output_dir}/BOLD_BenchMark{short_name_model}.png"
     plt.savefig(output_img_path,dpi = 300,bbox_inches = "tight")
 
