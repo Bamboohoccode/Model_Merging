@@ -119,7 +119,7 @@ def main():
                         default="cuda")
     parser.add_argument("--truncate",
                         action = "store_true")
-    parser.add_argument("seed",
+    parser.add_argument("--seed",
                         type = int,
                         default= 42)
     args = parser.parse_args()
