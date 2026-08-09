@@ -25,6 +25,7 @@ def load_dataset_func(args,name_dataset : str) -> list:
     ds = load_dataset(name_dataset)
     prompts = ds['train']['prompts']
     prompts = [prompt[0] for prompt in prompts]
+    print(prompts[0:10])
     if args.truncate:
         num_prompts = len(prompts) * 0.05
         prompts = random.sample(prompts,num_prompts)
