@@ -24,8 +24,7 @@ def get_dataset(args):
     datasets_list = []
     for config in available_configs:
         ds = load_dataset("HiTZ/bbq", config,split="test")
-
-    datasets_list.append(ds)
+        datasets_list.append(ds)
     data = concatenate_datasets(datasets_list)
     if args.truncate:
         num_data = int(len(data) * 0.5)
