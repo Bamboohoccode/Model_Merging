@@ -56,7 +56,7 @@ def find_latest_result(output_dir: Path) -> Path:
     return max(
         result_files,
         key=lambda path: path.stat().st_mtime) # Tim File moi nhat
-def evaluate_model(
+def evaluate_model(args,
     repo_id: str,
     output_dir: Path,
     max_length: int,
@@ -101,6 +101,8 @@ def evaluate_model(
         "true",
         "--output_path",
         str(output_dir),
+        "--limit",
+        str(f"{args.limit}")
     ])
     print(f"\nEvaluating: {repo_id}")
     subprocess.run(command, check=True)
@@ -124,6 +126,8 @@ def main():
     parser.add_argument("--get_every_single_scores",
                         action = "store_true",
                         help = "Get the csv_file")
+    parser.add_argument("--limit",type = float,
+                        default= 1.0)
     args = parser.parse_args()
     name_model = args.name_model.split("/")[-1]
     work_dir = Path(args.work_dir)
