@@ -136,11 +136,11 @@ def main():
     list_scores = {}
     #Pretrained Scores
     pretrained_repo_id = args.name_model
-    pretrained_scores = evaluate_model(pretrained_repo_id,output_dir,max_length = MAX_LENGTH,num_processes=2)
+    pretrained_scores = evaluate_model(args,pretrained_repo_id,output_dir,max_length = MAX_LENGTH,num_processes=2)
     karcher_repo_id =(
                     f"{args.hf_namespace}/"
                     f"karcher_Merged_{name_model}_{0.0}")
-    karcher_scores = evaluate_model(karcher_repo_id,output_dir,max_length = MAX_LENGTH,num_processes=2)
+    karcher_scores = evaluate_model(args,karcher_repo_id,output_dir,max_length = MAX_LENGTH,num_processes=2)
     csv_rows = [("pretrained","-",pretrained_scores)]
     for method in method_lists:
         method_scores = []
@@ -156,7 +156,7 @@ def main():
                     f"{args.hf_namespace}/"
                     f"{method}_Merged_{name_model}_{alpha:.1f}"
                 )
-                current_scores = evaluate_model(
+                current_scores = evaluate_model(args,
                     repo_id=repo_id,
                     output_dir=output_path,
                     max_length=MAX_LENGTH,
