@@ -27,7 +27,7 @@ def load_dataset_func(args,name_dataset : str) -> list:
     prompts = [prompt[0] for prompt in prompts]
     print(prompts[0:10])
     if args.truncate:
-        num_prompts = int(len(prompts) * 0.5)
+        num_prompts = int(len(prompts) * 0.1)
         prompts = random.sample(prompts,num_prompts)
     return prompts
 def get_generated_prompts(model : nn.Module,
