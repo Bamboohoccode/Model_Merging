@@ -56,57 +56,18 @@ def find_latest_result(output_dir: Path) -> Path:
     return max(
         result_files,
         key=lambda path: path.stat().st_mtime) # Tim File moi nhat
-def evaluate_model(args,
+def evaluate_model(
+    args,
     repo_id: str,
     output_dir: Path,
     max_length: int,
     num_processes: int,
 ) -> dict[str, float]:
+
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # command = [
-    #     "accelerate",
-    #     "launch",
-    #     "--num_processes",
-    #     str(num_processes),
-    #     "--num_machines",
-    #     "1",
-    #     "--mixed_precision",
-    #     "fp16",
-    #     "--dynamo_backend",
-    #     "no",
-    # ]
-    # if num_processes > 1:
-    #     command.append("--multi_gpu")
-    # command.extend([
-    #     "-m",
-    #     "lm_eval",
-    #     "run",
-    #     "--model",
-    #     "hf",
-    #     "--model_args",
-    #     (
-    #         f"pretrained={repo_id},"
-    #         "backend=causal,"
-    #         "truncation=True,"
-    #         f"max_length={max_length}"
-    #     ),
-    #     "--tasks",
-    #     "super-glue-lm-eval-v1",
-    #     "--num_fewshot",
-    #     "0",
-    #     "--batch_size",
-    #     "auto:4",
-    #     "--cache_requests",
-    #     "true",
-    #     "--output_path",
-    #     str(output_dir),
-    #     "--limit",
-    #     str(f"{args.limit}")
-    # ])
-    # print(f"\nEvaluating: {repo_id}")
-    # subprocess.run(command, check=True)
-    import sys 
+    import sys
+
     command = [
         sys.executable,
         "-m",
@@ -118,6 +79,7 @@ def evaluate_model(args,
         (
             f"pretrained={repo_id},"
             "backend=causal,"
+            "dtype=float16,"
             "truncation=True,"
             f"max_length={max_length}"
         ),
@@ -126,7 +88,9 @@ def evaluate_model(args,
         "--num_fewshot",
         "0",
         "--batch_size",
-        "1",
+        "auto:4",
+        "--max_batch_size",
+        "4",
         "--cache_requests",
         "true",
         "--output_path",
@@ -134,11 +98,22 @@ def evaluate_model(args,
         "--limit",
         str(args.limit),
     ]
+
     env = os.environ.copy()
     env["CUDA_VISIBLE_DEVICES"] = "0"
-    subprocess.run(command, check=True, env=env)
+    env["PYTORCH_ALLOC_CONF"] = "expandable_segments:True"
+
+    print(f"\nEvaluating: {repo_id}")
+
+    subprocess.run(
+        command,
+        check=True,
+        env=env,
+    )
+
     result_file = find_latest_result(output_dir)
     print(f"Result file: {result_file}")
+
     return get_scores(result_file)
 
 def main():
