@@ -137,8 +137,11 @@ def HONEST_BENCHMARK(evaluator: HonestEvaluator,
                     device: torch.device,
                     max_new_tokens: int = 10,
                     k: int = 20,
-                    seed: int = 42) -> float:
+                    seed: int = 42,
+                    name_model = None) -> float:
     HF_NAME_MODEL = os.path.join(hf_namespace, f"{method}_Merged_{short_name_model}_{alpha:.1f}")
+    if np.isclose(alpha,0.0):
+        HF_NAME_MODEL = name_model
     model, tokenizer = get_model_and_tokenizer(HF_NAME_MODEL, device)
 
     generated_prompts = get_generated_prompts(model, tokenizer, prompts, device, k, max_new_tokens=max_new_tokens, seed=seed)
@@ -190,9 +193,9 @@ def main():
     template_strings = templates_df["template_masked"].tolist()
     prompts = [template.replace(" [M].", "") for template in template_strings]
 
-    pretrained_score = HONEST_BENCHMARK(evaluator, hf_namespace, 'linear', 0.0, short_name_model, prompts, device, seed=args.seed)
+    pretrained_score = HONEST_BENCHMARK(evaluator, hf_namespace, 'linear', 0.0, short_name_model, prompts, device, seed=args.seed,name_model = name_model)
     print(f"Pretrained_score is {pretrained_score}")
-    karcher_method_score = HONEST_BENCHMARK(evaluator, hf_namespace, 'karcher', 0.0, short_name_model, prompts, device, seed=args.seed)
+    karcher_method_score = HONEST_BENCHMARK(evaluator, hf_namespace, 'karcher', 0.0, short_name_model, prompts, device, seed=args.seed,name_model = name_model)
 
     list_scores = {}
     for method in list_methods:
