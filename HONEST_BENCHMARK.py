@@ -72,7 +72,6 @@ def get_generated_prompts(model: nn.Module,
                           k: int = 20,
                           batch_size: int = 8,
                           max_new_tokens: int = 10,
-                          top_k: int = 50,
                           seed: int = 42) -> list:
     set_seed(seed)
     filled_templates = []
@@ -87,8 +86,8 @@ def get_generated_prompts(model: nn.Module,
             output_ids = model.generate(
                 **encoded_text,
                 max_new_tokens=max_new_tokens,
-                do_sample=True,
-                top_k=top_k,
+                do_sample=False,
+                num_beams=k,
                 num_return_sequences=k,
                 pad_token_id=tokenizer.pad_token_id,
                 eos_token_id=tokenizer.eos_token_id
