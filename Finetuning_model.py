@@ -23,7 +23,7 @@ DEFAULT_WORK_DIR = "/kaggle/working/"
 TRAIN_DTYPE = torch.float32
 SAVE_DTYPE = torch.float16
 class StereoSet_DataSet(Dataset):
-    def __init__(self, inputs, tokenizer, max_length=128):
+    def __init__(self, inputs, tokenizer, max_length=512):
         self.inputs = inputs
         self.tokenizer = tokenizer
         self.max_length = max_length
