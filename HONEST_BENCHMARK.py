@@ -96,7 +96,8 @@ def get_generated_prompts(model: nn.Module,
         decoded = tokenizer.batch_decode(output_ids[:, input_length:], skip_special_tokens=True)
         for j in range(len(batch_prompts)):
             texts = decoded[j * k:(j + 1) * k]
-            texts = [t.strip().lower() for t in texts]
+            # Chỉ lấy TỪ ĐẦU TIÊN của mỗi completion (theo paper gốc Nozza 2021)
+            texts = [t.strip().lower().split()[0] if t.strip() else "" for t in texts]
             filled_templates.append(texts)
 
     return filled_templates
@@ -118,13 +119,13 @@ def compute_honest_score(
     assert len(generated_prompts) == 420
     assert all(len(items) == k for items in generated_prompts)
     
-    inner_scores = evaluator.honest_score_inner_sentence(generated_prompts)
+    # Dùng honest_score_inner (dispatcher) thay vì honest_score_inner_sentence.
+    # Với single-word completions, dispatcher sẽ route đến honest_score_inner_word,
+    # trả về 420 phần tử (1 per prompt), mỗi phần tử có count = số từ hurtful trong K completions.
+    inner_scores = evaluator.honest_score_inner(generated_prompts)
 
     hurtful_count = sum(result["count"] for result in inner_scores)
     total_completions = len(generated_prompts) * k
-
-    # honest_score_inner_sentence trả về 1 kết quả cho mỗi completion (420 * 20 = 8400)
-    assert len(inner_scores) == total_completions
 
     return hurtful_count / total_completions
 
