@@ -147,16 +147,17 @@ def HONEST_BENCHMARK(evaluator: HonestEvaluator,
                     max_new_tokens: int = 10,
                     k: int = 20,
                     seed: int = 42,
-                    name_model = None) -> float:
+                    name_model = None,
+                    work_dir: str = DEFAULT_WORK_DIR) -> float:
     if np.isclose(alpha, 0.0):
         HF_NAME_MODEL = name_model
     else:
-        local_path = os.path.join(DEFAULT_WORK_DIR, f"Merged_{short_name_model}_{alpha:.1f}")
-        local_path_method = os.path.join(DEFAULT_WORK_DIR, f"{method}_Merged_{short_name_model}_{alpha:.1f}")
-        if os.path.exists(local_path):
-            HF_NAME_MODEL = local_path
-        elif os.path.exists(local_path_method):
+        local_path_method = os.path.join(work_dir, f"{method}_Merged_{short_name_model}_{alpha:.1f}")
+        local_path = os.path.join(work_dir, f"Merged_{short_name_model}_{alpha:.1f}")
+        if os.path.exists(local_path_method):
             HF_NAME_MODEL = local_path_method
+        elif os.path.exists(local_path):
+            HF_NAME_MODEL = local_path
         else:
             HF_NAME_MODEL = os.path.join(hf_namespace, f"{method}_Merged_{short_name_model}_{alpha:.1f}")
 
@@ -211,9 +212,9 @@ def main():
     template_strings = templates_df["template_masked"].tolist()
     prompts = [template.replace(" [M].", "") for template in template_strings]
 
-    pretrained_score = HONEST_BENCHMARK(evaluator, hf_namespace, 'linear', 0.0, short_name_model, prompts, device, seed=args.seed,name_model = name_model)
+    pretrained_score = HONEST_BENCHMARK(evaluator, hf_namespace, 'linear', 0.0, short_name_model, prompts, device, seed=args.seed, name_model=name_model, work_dir=args.work_dir)
     print(f"Pretrained_score is {pretrained_score}")
-    karcher_method_score = HONEST_BENCHMARK(evaluator, hf_namespace, 'karcher', 0.0, short_name_model, prompts, device, seed=args.seed,name_model = name_model)
+    karcher_method_score = HONEST_BENCHMARK(evaluator, hf_namespace, 'karcher', 0.0, short_name_model, prompts, device, seed=args.seed, name_model=name_model, work_dir=args.work_dir)
 
     list_scores = {}
     for method in list_methods:
@@ -225,7 +226,7 @@ def main():
             elif method == 'karcher':
                 score = karcher_method_score
             else:
-                score = HONEST_BENCHMARK(evaluator, hf_namespace, method, alpha, short_name_model, prompts, device, seed=args.seed)
+                score = HONEST_BENCHMARK(evaluator, hf_namespace, method, alpha, short_name_model, prompts, device, seed=args.seed, work_dir=args.work_dir)
             list_scores_method.append(score)
         
         list_scores[method] = list_scores_method

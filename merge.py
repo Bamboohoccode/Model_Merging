@@ -198,9 +198,9 @@ def main() -> None:
         config_path = work_dir / "Model_Merging"/"yml_folder"/f"{method}.yml"
         print(f"Merge method: {method}")
         for alpha in args.alphas:
-            output_dir = work_dir / f"Merged_{model_name}_{alpha:.1f}"
+            output_dir = work_dir / f"{method}_Merged_{model_name}_{alpha:.1f}"
             if output_dir.exists():
-                print("Đã xuất hiẹn file này rồi, Đang thay thế nó !")
+                print("Đã xuất hiện file này rồi, Đang thay thế nó !")
                 shutil.rmtree(output_dir)
             config = load_yaml(config_path)
             config = update_config(config,method,debias_model_dir,base_model_dir,alpha)
