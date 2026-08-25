@@ -359,7 +359,7 @@ def main() -> None:
     gc.collect()
     torch.cuda.empty_cache()
 
-    # Create inverse model
+    # Create inverse model (Section 3.2.1 of Shirafuji et al.)
     base_model = AutoModelForCausalLM.from_pretrained(BASE_MODEL, device_map= device, dtype=TRAIN_DTYPE)
     base_state = base_model.state_dict()
 
@@ -368,9 +368,15 @@ def main() -> None:
         raise ValueError("2 Models have the different architectures")
     inverse_state = {}
     for key in base_state.keys():
-        inverse_state[key] = (
-            2.0 * base_state[key].detach().cpu().float() - bias_state[key].detach().cpu().float()
-        )
+        base_param = base_state[key].detach().cpu().float()
+        bias_param = bias_state[key].detach().cpu().float()
+5       inv_param = 2.0 * base_param - bias_param
+        base_norm = torch.norm(base_param)
+        inv_norm = torch.norm(inv_param)
+        if inv_norm > 1e-8 and base_norm > 1e-8:
+            inv_param = inv_param * (base_norm / inv_norm)
+
+        inverse_state[key] = inv_param
     del base_model
     gc.collect()
     Inverse_model = AutoModelForCausalLM.from_pretrained(BASE_MODEL,device_map = device,dtype = TRAIN_DTYPE)
