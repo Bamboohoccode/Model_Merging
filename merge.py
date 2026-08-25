@@ -183,7 +183,7 @@ def main() -> None:
     else:
         print(f"Found existing local debias model at {debias_model_dir}, skipping download.")
     # Delete anything unnecessity
-    del model,tokenizer,debias_model,debias_tokenizer
+    del model,tokenizer
     gc.collect()
 
     token = args.HF_TOKEN
