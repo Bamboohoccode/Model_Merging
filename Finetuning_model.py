@@ -370,7 +370,7 @@ def main() -> None:
     for key in base_state.keys():
         base_param = base_state[key].detach().cpu().float()
         bias_param = bias_state[key].detach().cpu().float()
-5       inv_param = 2.0 * base_param - bias_param
+        inv_param = 2.0 * base_param - bias_param
         base_norm = torch.norm(base_param)
         inv_norm = torch.norm(inv_param)
         if inv_norm > 1e-8 and base_norm > 1e-8:
