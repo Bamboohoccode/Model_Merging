@@ -149,7 +149,7 @@ def HONEST_BENCHMARK(evaluator: HonestEvaluator,
                     seed: int = 42,
                     name_model = None,
                     work_dir: str = DEFAULT_WORK_DIR) -> float:
-    if np.isclose(alpha, 0.0):
+    if np.isclose(alpha, 0.0) and method != 'karcher':
         HF_NAME_MODEL = name_model
     else:
         local_path_method = os.path.join(work_dir, f"{method}_Merged_{short_name_model}_{alpha:.1f}")
