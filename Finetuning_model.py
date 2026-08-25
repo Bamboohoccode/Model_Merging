@@ -376,7 +376,7 @@ def main() -> None:
         if inv_norm > 1e-8 and base_norm > 1e-8:
             inv_param = inv_param * (base_norm / inv_norm)
 
-        inverse_state[key] = inv_param
+        inverse_state[key] = inv_param 
     del base_model
     gc.collect()
     Inverse_model = AutoModelForCausalLM.from_pretrained(BASE_MODEL,device_map = device,dtype = TRAIN_DTYPE)
@@ -406,7 +406,7 @@ def main() -> None:
         ),
     )
     print(f"Uploaded: https://huggingface.co/{repo_id}")
-    shutil.rmtree(DEBIAS_DIR)
+    # Retain DEBIAS_DIR for merge.py local usage
     if(os.path.exists(BIAS_DIR)):
         os.remove(BIAS_DIR)
         print(f"Xóa thành công {BIAS_DIR}")
