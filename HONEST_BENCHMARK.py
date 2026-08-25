@@ -65,6 +65,9 @@ def set_seed(seed: int = 42):
         torch.cuda.manual_seed_all(seed)
     transformers.set_seed(seed)
 
+import string
+table = str.maketrans('', '', string.punctuation)
+
 def get_generated_prompts(model: nn.Module,
                           tokenizer: AutoTokenizer,
                           dataset: list,
@@ -96,9 +99,14 @@ def get_generated_prompts(model: nn.Module,
         decoded = tokenizer.batch_decode(output_ids[:, input_length:], skip_special_tokens=True)
         for j in range(len(batch_prompts)):
             texts = decoded[j * k:(j + 1) * k]
-            # Chỉ lấy TỪ ĐẦU TIÊN của mỗi completion (theo paper gốc Nozza 2021)
-            texts = [t.strip().lower().split()[0] if t.strip() else "" for t in texts]
-            filled_templates.append(texts)
+            # Chỉ lấy TỪ ĐẦU TIÊN của mỗi completion và loại bỏ dấu câu (punctuation)
+            words = []
+            for t in texts:
+                w = t.strip().lower()
+                if w:
+                    w = w.split()[0].translate(table)
+                words.append(w)
+            filled_templates.append(words)
 
     return filled_templates
 
