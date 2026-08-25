@@ -148,9 +148,18 @@ def HONEST_BENCHMARK(evaluator: HonestEvaluator,
                     k: int = 20,
                     seed: int = 42,
                     name_model = None) -> float:
-    HF_NAME_MODEL = os.path.join(hf_namespace, f"{method}_Merged_{short_name_model}_{alpha:.1f}")
-    if np.isclose(alpha,0.0):
+    if np.isclose(alpha, 0.0):
         HF_NAME_MODEL = name_model
+    else:
+        local_path = os.path.join(DEFAULT_WORK_DIR, f"Merged_{short_name_model}_{alpha:.1f}")
+        local_path_method = os.path.join(DEFAULT_WORK_DIR, f"{method}_Merged_{short_name_model}_{alpha:.1f}")
+        if os.path.exists(local_path):
+            HF_NAME_MODEL = local_path
+        elif os.path.exists(local_path_method):
+            HF_NAME_MODEL = local_path_method
+        else:
+            HF_NAME_MODEL = os.path.join(hf_namespace, f"{method}_Merged_{short_name_model}_{alpha:.1f}")
+
     model, tokenizer = get_model_and_tokenizer(HF_NAME_MODEL, device)
 
     generated_prompts = get_generated_prompts(model, tokenizer, prompts, device, k, max_new_tokens=max_new_tokens, seed=seed)

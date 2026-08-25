@@ -165,16 +165,23 @@ def main() -> None:
     )
     tokenizer.save_pretrained(base_model_dir)
 
-    print(f"Saving debias model for MergeKit: {debias_model_dir}")
-    debias_model = AutoModelForCausalLM.from_pretrained(debias_model_name,
-                                                            dtype=torch.float32, 
-                                                        low_cpu_mem_usage=True)
-    debias_tokenizer = AutoTokenizer.from_pretrained(debias_model_name)
-    debias_model.save_pretrained(
-        debias_model_dir,
-        safe_serialization=True,
-    )
-    debias_tokenizer.save_pretrained(debias_model_dir)
+    print(f"Checking debias model for MergeKit: {debias_model_dir}")
+    if not os.path.exists(debias_model_dir):
+        print(f"Local debias model not found. Downloading from HF: {debias_model_name}")
+        debias_model = AutoModelForCausalLM.from_pretrained(
+            debias_model_name,
+            dtype=torch.float32, 
+            low_cpu_mem_usage=True
+        )
+        debias_tokenizer = AutoTokenizer.from_pretrained(debias_model_name)
+        debias_model.save_pretrained(
+            debias_model_dir,
+            safe_serialization=True,
+        )
+        debias_tokenizer.save_pretrained(debias_model_dir)
+        del debias_model, debias_tokenizer
+    else:
+        print(f"Found existing local debias model at {debias_model_dir}, skipping download.")
     # Delete anything unnecessity
     del model,tokenizer,debias_model,debias_tokenizer
     gc.collect()
