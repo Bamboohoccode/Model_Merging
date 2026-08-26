@@ -8,6 +8,7 @@ models:
 
 merge_method: linear
 parameters:
-  normalize: true
+  normalize: false
 
 dtype: float32
+

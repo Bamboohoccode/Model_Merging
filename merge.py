@@ -232,25 +232,20 @@ def main() -> None:
                 print(f"Directory {output_dir} exists, replacing it.")
                 shutil.rmtree(output_dir)
 
-            print(f"Merging {method} alpha={alpha:.1f} -> {output_dir}")
-            
-            if method in {"linear", "slerp"}:
-                merge_pytorch(
-                    base_model_dir=str(base_model_dir),
-                    debias_model_dir=str(debias_model_dir),
-                    output_dir=str(output_dir),
-                    method=method,
-                    alpha=alpha
-                )
-            else:
-                config_path = work_dir / "Model_Merging" / "yml_folder" / f"{method}.yml"
-                config = load_yaml(config_path)
-                config = update_config(config, method, debias_model_dir, base_model_dir, alpha)
-                save_yaml(config, config_path)
-                subprocess.run(
-                    ["mergekit-yaml", str(config_path), str(output_dir)],
-                    check=True,
-                )
+            config_path = work_dir / "Model_Merging" / "yml_folder" / f"{method}.yml"
+            if not config_path.exists():
+                config_path = Path("yml_folder") / f"{method}.yml"
+
+            config = load_yaml(config_path)
+            config = update_config(config, method, debias_model_dir, base_model_dir, alpha)
+            save_yaml(config, config_path)
+
+            print(f"Merging {method} alpha={alpha:.1f} via mergekit-yaml -> {output_dir}")
+            subprocess.run(
+                ["mergekit-yaml", str(config_path), str(output_dir)],
+                check=True,
+            )
+
 
             if api is not None:
                 repo_id = f"{args.hf_namespace}/{method}_Merged_{model_name}_{alpha:.1f}"
