@@ -4,7 +4,6 @@ Dependency:
 !pip install pyyaml
 '''
 
-
 import argparse
 import gc
 import os
@@ -16,6 +15,7 @@ import torch
 import yaml
 from huggingface_hub import HfApi
 from transformers import AutoModelForCausalLM, AutoTokenizer
+
 def unwrap_state_dict(checkpoint: Any) -> dict[str, torch.Tensor]:
     if not isinstance(checkpoint, dict):
         raise TypeError("Checkpoint must be a dictionary/state_dict.")
@@ -26,21 +26,72 @@ def unwrap_state_dict(checkpoint: Any) -> dict[str, torch.Tensor]:
             return value
 
     return checkpoint
-DEFAULT_MERGING_METHOD = ["linear","karcher","slerp","nuslerp","ties","della","nearswap"]
+
+DEFAULT_MERGING_METHOD = ["linear", "karcher", "slerp", "nuslerp", "ties", "della", "nearswap"]
 DEFAULT_BASE_MODEL = "ComCom/gpt2-small"
 DEFAULT_WORK_DIR = "/kaggle/working"
 DEFAULT_HF_NAMESPACE = "trinhkhng"
 DEFAULT_ALPHAS = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
-def load_yaml(yaml_path : Path | str) -> dict:
+
+def load_yaml(yaml_path: Path | str) -> dict:
     yaml_path = Path(yaml_path)
-    with yaml_path.open("r",encoding="utf-8") as file:
+    with yaml_path.open("r", encoding="utf-8") as file:
         return yaml.safe_load(file)
-def save_yaml(yaml_config : dict,yaml_path : Path | str) -> None:
+
+def save_yaml(yaml_config: dict, yaml_path: Path | str) -> None:
     yaml_path = Path(yaml_path)
-    with yaml_path.open("w",encoding= "utf-8") as file :
-        yaml.safe_dump(
-            yaml_config,
-            file)
+    with yaml_path.open("w", encoding="utf-8") as file:
+        yaml.safe_dump(yaml_config, file)
+
+def slerp_tensor(v0: torch.Tensor, v1: torch.Tensor, t: float, dot_threshold: float = 0.9995) -> torch.Tensor:
+    v0_f = v0.float()
+    v1_f = v1.float()
+    v0_norm = torch.norm(v0_f)
+    v1_norm = torch.norm(v1_f)
+    if v0_norm < 1e-8 or v1_norm < 1e-8:
+        return (1.0 - t) * v0 + t * v1
+    u0 = v0_f / v0_norm
+    u1 = v1_f / v1_norm
+    dot = torch.sum(u0 * u1).clamp(-1.0, 1.0)
+    if torch.abs(dot) > dot_threshold:
+        return (1.0 - t) * v0 + t * v1
+    theta_0 = torch.acos(dot)
+    sin_theta_0 = torch.sin(theta_0)
+    theta_t = theta_0 * t
+    sin_theta_t = torch.sin(theta_t)
+    s0 = torch.sin(theta_0 - theta_t) / sin_theta_0
+    s1 = sin_theta_t / sin_theta_0
+    res = s0 * v0_f + s1 * v1_f
+    return res.to(v0.dtype)
+
+def merge_pytorch(base_model_dir: str, debias_model_dir: str, output_dir: str, method: str, alpha: float):
+    base_model = AutoModelForCausalLM.from_pretrained(base_model_dir, torch_dtype=torch.float32)
+    debias_model = AutoModelForCausalLM.from_pretrained(debias_model_dir, torch_dtype=torch.float32)
+    
+    base_state = base_model.state_dict()
+    debias_state = debias_model.state_dict()
+    merged_state = {}
+    
+    for k in base_state.keys():
+        b_t = base_state[k]
+        d_t = debias_state[k]
+        if torch.is_floating_point(b_t):
+            if method == "linear":
+                merged_t = (1.0 - alpha) * b_t.float() + alpha * d_t.float()
+            elif method == "slerp":
+                merged_t = slerp_tensor(b_t, d_t, alpha)
+            else:
+                merged_t = (1.0 - alpha) * b_t.float() + alpha * d_t.float()
+            merged_state[k] = merged_t.to(b_t.dtype)
+        else:
+            merged_state[k] = b_t.clone()
+            
+    base_model.load_state_dict(merged_state)
+    base_model.save_pretrained(output_dir, safe_serialization=True)
+    
+    tokenizer = AutoTokenizer.from_pretrained(base_model_dir)
+    tokenizer.save_pretrained(output_dir)
+
 def update_config(
     config: dict,
     method: str,
@@ -59,30 +110,22 @@ def update_config(
         config["models"][1]["parameters"]["weight"] = alpha
 
     elif method == "slerp":
-        # SLERP có 2 model trong models.
         config["models"][0]["model"] = base_model_dir
         config["models"][1]["model"] = debias_model_dir
-
         config["base_model"] = base_model_dir
         config["parameters"]["t"] = alpha
 
     elif method == "nearswap":
-        # NearSwap chỉ chứa donor/inverse model trong models.
-        # Base model được khai báo riêng.
         config["models"][0]["model"] = debias_model_dir
-
         config["base_model"] = base_model_dir
         config["parameters"]["t"] = alpha
 
     elif method in {"ties", "della"}:
-        # TIES và DELLA chỉ chứa inverse model trong models.
         config["models"][0]["model"] = debias_model_dir
-
         config["base_model"] = base_model_dir
         config["parameters"]["lambda"] = alpha
 
     elif method == "karcher":
-        # Karcher của MergeKit hiện tại dùng trọng số bằng nhau.
         config["models"][0]["model"] = base_model_dir
         config["models"][1]["model"] = debias_model_dir
 
@@ -94,19 +137,17 @@ def update_config(
     }
 
     return config
-        
 
-#----------------------------------------------------------------------------------------------------------------
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Create debias weights and merge them with the base model."
     )
-    parser.add_argument("--name_model",default=DEFAULT_BASE_MODEL)
-    parser.add_argument("--work_dir",default=DEFAULT_WORK_DIR)
+    parser.add_argument("--name_model", default=DEFAULT_BASE_MODEL)
+    parser.add_argument("--work_dir", default=DEFAULT_WORK_DIR)
     parser.add_argument("--hf_namespace", default=DEFAULT_HF_NAMESPACE)
-    parser.add_argument("--debias_model_dir",default = None)
-    parser.add_argument("--HF_TOKEN",default= None)
-    parser.add_argument("--debias_model_name",default=None)
+    parser.add_argument("--debias_model_dir", default=None)
+    parser.add_argument("--HF_TOKEN", default=None)
+    parser.add_argument("--debias_model_name", default=None)
     parser.add_argument(
         "--alphas",
         type=float,
@@ -116,10 +157,10 @@ def main() -> None:
     )
     parser.add_argument(
         "--merge_methods",
-        nargs = "+",
-        type = str,
-        default = DEFAULT_MERGING_METHOD,
-        help = "Merge methods, e.g. --merge_methods linear slerp"
+        nargs="+",
+        type=str,
+        default=DEFAULT_MERGING_METHOD,
+        help="Merge methods, e.g. --merge_methods linear slerp"
     )
     parser.add_argument(
         "--private",
@@ -136,80 +177,81 @@ def main() -> None:
     work_dir = Path(args.work_dir)
     work_dir.mkdir(parents=True, exist_ok=True)
     model_name = args.name_model.split("/")[-1]
-    base_model_dir = os.path.join(work_dir,f"{model_name}")
+    base_model_dir = os.path.join(work_dir, f"{model_name}")
+
     if args.debias_model_name is None:
-        debias_model_name =  f"{args.hf_namespace}/debias_{model_name}"
+        debias_model_name = f"{args.hf_namespace}/debias_{model_name}"
     else:
         debias_model_name = args.debias_model_name
-        debias_model_name = os.path.join(args.hf_namespace,debias_model_name)
+        debias_model_name = os.path.join(args.hf_namespace, debias_model_name)
 
-    if(args.debias_model_dir is None):
-        debias_model_dir = os.path.join(work_dir,f"{model_name}_debias")
+    if args.debias_model_dir is None:
+        debias_model_dir = os.path.join(work_dir, f"{model_name}_debias")
     else:
         debias_model_dir = args.debias_model_dir
-    
-    model = AutoModelForCausalLM.from_pretrained(
-        args.name_model,
-        dtype=torch.float32, 
-        low_cpu_mem_usage=True,
-    )
-    tokenizer = AutoTokenizer.from_pretrained(
-        args.name_model,
-        use_fast=False,
-    )
 
-    print(f"Saving base model for MergeKit: {base_model_dir}")
-    model.save_pretrained(
-        base_model_dir,
-        safe_serialization=True,
-    )
-    tokenizer.save_pretrained(base_model_dir)
+    if not os.path.exists(base_model_dir):
+        print(f"Saving base model for merging: {base_model_dir}")
+        model = AutoModelForCausalLM.from_pretrained(
+            args.name_model,
+            torch_dtype=torch.float32,
+            low_cpu_mem_usage=True,
+        )
+        tokenizer = AutoTokenizer.from_pretrained(
+            args.name_model,
+            use_fast=False,
+        )
+        model.save_pretrained(base_model_dir, safe_serialization=True)
+        tokenizer.save_pretrained(base_model_dir)
 
-    print(f"Checking debias model for MergeKit: {debias_model_dir}")
+    print(f"Checking debias model for merging: {debias_model_dir}")
     if not os.path.exists(debias_model_dir):
         print(f"Local debias model not found. Downloading from HF: {debias_model_name}")
         debias_model = AutoModelForCausalLM.from_pretrained(
             debias_model_name,
-            dtype=torch.float32, 
+            torch_dtype=torch.float32,
             low_cpu_mem_usage=True
         )
         debias_tokenizer = AutoTokenizer.from_pretrained(debias_model_name)
-        debias_model.save_pretrained(
-            debias_model_dir,
-            safe_serialization=True,
-        )
+        debias_model.save_pretrained(debias_model_dir, safe_serialization=True)
         debias_tokenizer.save_pretrained(debias_model_dir)
-        del debias_model, debias_tokenizer
-    else:
-        print(f"Found existing local debias model at {debias_model_dir}, skipping download.")
-    # Delete anything unnecessity
-    del model,tokenizer
-    gc.collect()
 
     token = args.HF_TOKEN
     if not args.skip_upload and not token:
         raise RuntimeError(
             "HF_TOKEN is not set. Set a Hugging Face write token or use --skip-upload."
         )
-    api = None if args.skip_upload else HfApi(token=token) # Dung de upload model len hf
-    # Merging
+    api = None if args.skip_upload else HfApi(token=token)
+
     list_merge_methods = args.merge_methods
     for method in list_merge_methods:
-        config_path = work_dir / "Model_Merging"/"yml_folder"/f"{method}.yml"
         print(f"Merge method: {method}")
         for alpha in args.alphas:
             output_dir = work_dir / f"{method}_Merged_{model_name}_{alpha:.1f}"
             if output_dir.exists():
-                print("Đã xuất hiện file này rồi, Đang thay thế nó !")
+                print(f"Directory {output_dir} exists, replacing it.")
                 shutil.rmtree(output_dir)
-            config = load_yaml(config_path)
-            config = update_config(config,method,debias_model_dir,base_model_dir,alpha)
-            save_yaml(config,config_path)
-            print(f"Merging alpha={alpha:.1f} -> {output_dir}")
-            subprocess.run(
-                ["mergekit-yaml", str(config_path), str(output_dir)],
-                check=True,
-            )
+
+            print(f"Merging {method} alpha={alpha:.1f} -> {output_dir}")
+            
+            if method in {"linear", "slerp"}:
+                merge_pytorch(
+                    base_model_dir=str(base_model_dir),
+                    debias_model_dir=str(debias_model_dir),
+                    output_dir=str(output_dir),
+                    method=method,
+                    alpha=alpha
+                )
+            else:
+                config_path = work_dir / "Model_Merging" / "yml_folder" / f"{method}.yml"
+                config = load_yaml(config_path)
+                config = update_config(config, method, debias_model_dir, base_model_dir, alpha)
+                save_yaml(config, config_path)
+                subprocess.run(
+                    ["mergekit-yaml", str(config_path), str(output_dir)],
+                    check=True,
+                )
+
             if api is not None:
                 repo_id = f"{args.hf_namespace}/{method}_Merged_{model_name}_{alpha:.1f}"
                 api.create_repo(
@@ -223,14 +265,11 @@ def main() -> None:
                     repo_type="model",
                     folder_path=str(output_dir),
                     path_in_repo=".",
-                    commit_message=(
-                        f"Upload merged debias {model_name}, alpha={alpha:.1f}"
-                    ),
+                    commit_message=f"Upload merged debias {model_name}, alpha={alpha:.1f}",
                 )
                 print(f"Uploaded: https://huggingface.co/{repo_id}")
-    shutil.rmtree(base_model_dir)
-    print("Base model directory removed. Merged models retained locally for evaluation.")
 
+    print("Merging process completed successfully. Merged models retained locally for evaluation.")
 
 if __name__ == "__main__":
     main()
