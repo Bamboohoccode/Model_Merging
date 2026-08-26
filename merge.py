@@ -228,10 +228,9 @@ def main() -> None:
                     ),
                 )
                 print(f"Uploaded: https://huggingface.co/{repo_id}")
-            shutil.rmtree(output_dir)
     shutil.rmtree(base_model_dir)
-    shutil.rmtree(debias_model_dir)
-    print("Base model and debias model have been removed,the process was done!")
+    print("Base model directory removed. Merged models retained locally for evaluation.")
+
 
 if __name__ == "__main__":
     main()
