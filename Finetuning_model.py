@@ -21,7 +21,7 @@ DEFAULT_HF_NAMESPACE = "trinhkhng"
 DEFAULT_NAME_MODEL = "ComCom/gpt2-small"
 DEFAULT_WORK_DIR = "/kaggle/working/"
 TRAIN_DTYPE = torch.float32
-SAVE_DTYPE = torch.float16
+SAVE_DTYPE = torch.float32
 class StereoSet_DataSet(Dataset):
     def __init__(self, inputs, tokenizer, max_length=512):
         self.inputs = inputs
@@ -280,7 +280,7 @@ def train(
     cpu_state_dict = {
         key: value.detach().to(
             device="cpu",
-            dtype=torch.float16,
+            dtype=torch.float32,
         )
         for key, value in model.state_dict().items()
     }
